@@ -6,9 +6,14 @@ import { selectData } from './selectors'
 import { buildReport } from '../engine/report'
 import { runChecks, allChecksOk } from '../engine/checks'
 
-export const selectReport = createSelector([selectData], (data) => buildReport(data))
-export const selectChecks = createSelector([selectData], (data) => runChecks(data))
+// ДДС (форма cf)
+export const selectReport = createSelector([selectData], (data) => buildReport(data, { form: 'cf' }))
+export const selectChecks = createSelector([selectData], (data) => runChecks(data, 'cf'))
 export const selectChecksOk = createSelector([selectChecks], (checks) => allChecksOk(checks))
+
+// P&L (форма pl)
+export const selectPlReport = createSelector([selectData], (data) => buildReport(data, { form: 'pl' }))
+export const selectPlChecks = createSelector([selectData], (data) => runChecks(data, 'pl'))
 
 /** Действующая формула статьи по коду (override поверх шаблонной) — для редактора. */
 export const selectFormulaByCode = createSelector([selectData], (data) => {

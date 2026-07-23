@@ -2,10 +2,11 @@
 // Расчёт по всем периодам сразу; PREV разворачивается слева направо.
 // Отчёт НЕ хранится — это чистая функция от данных. Циклы/ошибки формул —
 // понятное сообщение в report.error, без падения.
+// Форм-ориентированность: статьи фильтруются по Item.form (cf = ДДС, pl = P&L).
 
-import type { DataSnapshot, ItemKind, PeriodKey } from '../domain/types'
+import type { CellValue, DataSnapshot, Item, ItemKind, PeriodKey, ReportForm } from '../domain/types'
 import type { Money } from '../domain/money'
-import { derivePeriods, periodsInRange } from './periods'
+import { derivePeriods, periodsInRange, comparePeriods } from './periods'
 import { buildAggContext, aggValue } from './aggregate'
 import { buildCalcPlan, childrenByParent } from './formula/graph'
 import { evaluateMoney } from './formula/evaluator'
@@ -35,6 +36,13 @@ export interface Report {
   error?: string
 }
 
+export interface BuildReportOptions {
+  /** Форма отчёта; по умолчанию 'cf' (ДДС). */
+  form?: ReportForm
+  /** Явные периоды-колонки (для форм без журнала). */
+  periods?: PeriodKey[]
+}
+
 /** Значение колонки ИТОГО для строки. */
 export function rowTotal(row: ReportRow): Money | null {
   if (row.totalMode === 'none' || row.values.length === 0) return null
@@ -55,13 +63,17 @@ function computeDepth(code: string, parentByCode: Map<string, string | null>): n
   return depth
 }
 
-export function buildReport(data: DataSnapshot): Report {
-  const periods = resolvePeriods(data)
-  const parentByCode = new Map(data.items.map((it) => [it.code, it.parentCode]))
-  const overrideByCode = new Set(data.overrides.map((o) => o.itemCode))
-  const totalModeOf = makeTotalModeResolver(data)
+export function buildReport(data: DataSnapshot, opts: BuildReportOptions = {}): Report {
+  const form: ReportForm = opts.form ?? 'cf'
+  const items = data.items.filter((it) => it.form === form)
+  const periods = opts.periods ?? resolvePeriods(data, form, items)
 
-  const rowsMeta = [...data.items]
+  const parentByCode = new Map(items.map((it) => [it.code, it.parentCode]))
+  const overrideByCode = new Set(data.overrides.map((o) => o.itemCode))
+  const totalModeOf = makeTotalModeResolver(items)
+  const cellMap = buildCellMap(data.cellValues)
+
+  const rowsMeta = [...items]
     .sort((a, b) => a.order - b.order)
     .map((it) => ({
       code: it.code,
@@ -75,19 +87,19 @@ export function buildReport(data: DataSnapshot): Report {
 
   const resolved = new Map<string, Money[]>()
 
-  // 1) агрегаты журнала
+  // 1) агрегаты журнала (agg) и ручные ячейки (input)
   const aggCtx = buildAggContext(data)
-  for (const it of data.items) {
+  for (const it of items) {
     if (it.kind === 'agg' && it.aggRule) {
       resolved.set(it.code, periods.map((p) => aggValue(aggCtx, it.aggRule!, p)))
     } else if (it.kind === 'input') {
-      resolved.set(it.code, periods.map(() => 0n))
+      resolved.set(it.code, periods.map((p) => cellMap.get(cellKey(it.code, p)) ?? 0n))
     }
   }
 
   // 2) calc-статьи по топологическому порядку
   try {
-    const plan = buildCalcPlan(data.items, data.overrides)
+    const plan = buildCalcPlan(items, data.overrides)
     for (const code of plan.order) {
       const ast = plan.astByCode.get(code)
       if (!ast) continue
@@ -120,10 +132,20 @@ export function buildReport(data: DataSnapshot): Report {
   return { periods, rows }
 }
 
+function cellKey(itemCode: string, period: PeriodKey): string {
+  return `${itemCode}|${period}`
+}
+
+function buildCellMap(cellValues: CellValue[]): Map<string, Money> {
+  const m = new Map<string, Money>()
+  for (const cv of cellValues) m.set(cellKey(cv.itemCode, cv.period), cv.amount)
+  return m
+}
+
 /** ИТОГО: остатки (balance) — последний период, потоки — сумма. Для calc — по детям. */
-function makeTotalModeResolver(data: DataSnapshot): (code: string) => TotalMode {
-  const byCode = new Map(data.items.map((it) => [it.code, it]))
-  const children = childrenByParent(data.items)
+function makeTotalModeResolver(items: Item[]): (code: string) => TotalMode {
+  const byCode = new Map(items.map((it) => [it.code, it]))
+  const children = childrenByParent(items)
   const memo = new Map<string, TotalMode>()
 
   const resolve = (code: string): TotalMode => {
@@ -144,9 +166,19 @@ function makeTotalModeResolver(data: DataSnapshot): (code: string) => TotalMode 
   return resolve
 }
 
-function resolvePeriods(data: DataSnapshot): PeriodKey[] {
-  const derived = derivePeriods(data.operations)
-  if (derived.length > 0) return derived
-  const proj = data.projects[0]
-  return proj ? periodsInRange(proj.periodStart, proj.periodEnd) : []
+/** Периоды формы: cf — из журнала/проекта; прочие — из явного списка plPeriods ∪ ячеек. */
+function resolvePeriods(data: DataSnapshot, form: ReportForm, items: Item[]): PeriodKey[] {
+  if (form === 'cf') {
+    const derived = derivePeriods(data.operations)
+    if (derived.length > 0) return derived
+    const proj = data.projects[0]
+    return proj ? periodsInRange(proj.periodStart, proj.periodEnd) : []
+  }
+  // формы без журнала (P&L и т.п.): объединяем явные колонки и периоды из ячеек
+  const codes = new Set(items.map((it) => it.code))
+  const set = new Set<PeriodKey>(data.plPeriods)
+  for (const cv of data.cellValues) {
+    if (codes.has(cv.itemCode)) set.add(cv.period)
+  }
+  return [...set].sort(comparePeriods)
 }

@@ -48,6 +48,8 @@ export function normalizeSnapshot(data: DataSnapshot): DataSnapshot {
     ...data,
     overrides: data.overrides ?? [],
     templateVersions: data.templateVersions ?? [],
+    cellValues: data.cellValues ?? [],
+    plPeriods: data.plPeriods ?? [],
     projects: data.projects ?? [],
     scenarios: data.scenarios ?? [],
   }

@@ -2,8 +2,9 @@
 // постоянно. Молчаливое несхождение недопустимо — каждое расхождение показывается
 // числом. Пять проверок из ARCHITECTURE.md.
 
-import type { DataSnapshot, PeriodKey } from '../domain/types'
+import type { DataSnapshot, PeriodKey, ReportForm } from '../domain/types'
 import type { Money } from '../domain/money'
+import { buildReport } from './report'
 import { buildAggContext, aggValue } from './aggregate'
 import { derivePeriods, periodOf, formatPeriod, isValidPeriod, comparePeriods } from './periods'
 
@@ -24,7 +25,8 @@ export interface CheckResult {
   issues: CheckIssue[]
 }
 
-export function runChecks(data: DataSnapshot): CheckResult[] {
+export function runChecks(data: DataSnapshot, form: ReportForm = 'cf'): CheckResult[] {
+  if (form === 'pl') return runPlChecks(data)
   const periods = derivePeriods(data.operations)
   return [
     checkBalanceIdentity(data, periods),
@@ -32,6 +34,42 @@ export function runChecks(data: DataSnapshot): CheckResult[] {
     checkTypeMatchesCategory(data),
     checkEmptyOrZeroOperations(data),
     checkDatesInRange(data),
+  ]
+}
+
+/** Лёгкие проверки P&L: отрицательная выручка/чистая прибыль (предупреждения). */
+function runPlChecks(data: DataSnapshot): CheckResult[] {
+  const rep = buildReport(data, { form: 'pl' })
+  const findRow = (codes: string[]) => rep.rows.find((r) => codes.includes(r.code))
+  const revenue = findRow(['rev_total'])
+  const net = findRow(['net_profit'])
+
+  const revIssues: CheckIssue[] = []
+  const netIssues: CheckIssue[] = []
+  rep.periods.forEach((p, i) => {
+    if (revenue && revenue.values[i] < 0n) {
+      revIssues.push({ label: `${formatPeriod(p)}: выручка отрицательна`, discrepancy: revenue.values[i] })
+    }
+    if (net && net.values[i] < 0n) {
+      netIssues.push({ label: `${formatPeriod(p)}: убыток`, discrepancy: net.values[i] })
+    }
+  })
+
+  return [
+    {
+      id: 'pl-revenue-sign',
+      title: 'Выручка неотрицательна',
+      ok: revIssues.length === 0,
+      severity: 'warning',
+      issues: revIssues,
+    },
+    {
+      id: 'pl-net-sign',
+      title: 'Нет убытка по периодам',
+      ok: netIssues.length === 0,
+      severity: 'warning',
+      issues: netIssues,
+    },
   ]
 }
 

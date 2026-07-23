@@ -11,7 +11,10 @@ import type {
   OpeningBalance,
   Operation,
   OperationLine,
+  PeriodKey,
+  ReportForm,
 } from '../domain/types'
+import type { Money } from '../domain/money'
 import { buildFixtureSnapshot } from '../data/fixtures'
 
 export type DataState = DataSnapshot
@@ -185,6 +188,52 @@ const dataSlice = createSlice({
     deleteTemplateVersion(state, action: PayloadAction<string>) {
       state.templateVersions = state.templateVersions.filter((v) => v.id !== action.payload)
     },
+
+    // --- Ручные ячейки (input-статьи по периодам; P&L) ---
+    setCellValue(state, action: PayloadAction<{ itemCode: string; period: PeriodKey; amount: Money }>) {
+      const { itemCode, period, amount } = action.payload
+      const idx = state.cellValues.findIndex((c) => c.itemCode === itemCode && c.period === period)
+      if (idx >= 0) state.cellValues[idx].amount = amount
+      else state.cellValues.push({ itemCode, period, amount })
+    },
+    deleteCellValue(state, action: PayloadAction<{ itemCode: string; period: PeriodKey }>) {
+      const { itemCode, period } = action.payload
+      state.cellValues = state.cellValues.filter(
+        (c) => !(c.itemCode === itemCode && c.period === period),
+      )
+    },
+
+    // --- Колонки-периоды (формы без журнала) ---
+    addPeriod(state, action: PayloadAction<PeriodKey>) {
+      if (!state.plPeriods.includes(action.payload)) state.plPeriods.push(action.payload)
+    },
+    removePeriod(state, action: PayloadAction<PeriodKey>) {
+      state.plPeriods = state.plPeriods.filter((p) => p !== action.payload)
+      state.cellValues = state.cellValues.filter((c) => c.period !== action.payload)
+    },
+
+    // --- Наполнение/очистка статей одной формы ---
+    seedItems(state, action: PayloadAction<{ items: Item[]; periods?: PeriodKey[] }>) {
+      const forms = new Set(action.payload.items.map((i) => i.form))
+      const codes = new Set(action.payload.items.map((i) => i.code))
+      // убрать прежние статьи тех же форм и связанные ячейки/оверрайды
+      state.items = state.items.filter((i) => !forms.has(i.form))
+      state.items.push(...action.payload.items)
+      state.overrides = state.overrides.filter((o) => !codes.has(o.itemCode))
+      if (action.payload.periods) {
+        for (const p of action.payload.periods) {
+          if (!state.plPeriods.includes(p)) state.plPeriods.push(p)
+        }
+      }
+    },
+    clearForm(state, action: PayloadAction<ReportForm>) {
+      const form = action.payload
+      const codes = new Set(state.items.filter((i) => i.form === form).map((i) => i.code))
+      state.items = state.items.filter((i) => i.form !== form)
+      state.overrides = state.overrides.filter((o) => !codes.has(o.itemCode))
+      state.cellValues = state.cellValues.filter((c) => !codes.has(c.itemCode))
+      if (form === 'pl') state.plPeriods = []
+    },
   },
 })
 
@@ -206,6 +255,12 @@ export const {
   saveTemplateVersion,
   restoreTemplateVersion,
   deleteTemplateVersion,
+  setCellValue,
+  deleteCellValue,
+  addPeriod,
+  removePeriod,
+  seedItems,
+  clearForm,
 } = dataSlice.actions
 
 export default dataSlice.reducer

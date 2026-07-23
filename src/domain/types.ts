@@ -132,6 +132,13 @@ export interface Scenario {
   kind: ScenarioKind
 }
 
+/** Значение ручной ячейки (input-статья × период). Используется P&L и планами. */
+export interface CellValue {
+  itemCode: string
+  period: PeriodKey
+  amount: Money
+}
+
 /** Полный слепок данных (для repository / экспорта / импорта). */
 export interface DataSnapshot {
   accounts: Account[]
@@ -144,6 +151,10 @@ export interface DataSnapshot {
   items: Item[]
   overrides: ItemOverride[]
   templateVersions: TemplateVersion[]
+  /** Значения ручных ячеек (input-статьи по периодам). */
+  cellValues: CellValue[]
+  /** Явный список колонок-периодов для форм без журнала (P&L). */
+  plPeriods: PeriodKey[]
   projects: Project[]
   scenarios: Scenario[]
 }

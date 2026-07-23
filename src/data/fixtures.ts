@@ -164,6 +164,8 @@ export function buildFixtureSnapshot(): DataSnapshot {
     items: structuredClone(DDS_ITEMS),
     overrides: [],
     templateVersions: [],
+    cellValues: [],
+    plPeriods: [],
     projects: structuredClone(projects),
     scenarios: structuredClone(scenarios),
   }
@@ -182,6 +184,8 @@ export function buildEmptySnapshot(): DataSnapshot {
     items: [],
     overrides: [],
     templateVersions: [],
+    cellValues: [],
+    plPeriods: [],
     projects: [],
     scenarios: [],
   }

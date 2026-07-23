@@ -3,14 +3,17 @@
 import type { AppStore } from '../store'
 import { hydrate } from '../store/dataSlice'
 import { normalizeSnapshot } from './json'
+import { buildEmptySnapshot } from './fixtures'
 import type { Repository } from './repository'
 
 export async function initPersistence(store: AppStore, repo: Repository): Promise<void> {
   try {
     const saved = await repo.load()
-    if (saved) store.dispatch(hydrate(normalizeSnapshot(saved)))
+    // Есть сохранённые данные — грузим их; иначе стартуем с чистого листа (не с учебной фикстуры).
+    store.dispatch(hydrate(saved ? normalizeSnapshot(saved) : buildEmptySnapshot()))
   } catch (e) {
     console.warn('Не удалось загрузить сохранённые данные:', e)
+    store.dispatch(hydrate(buildEmptySnapshot()))
   }
 
   let timer: ReturnType<typeof setTimeout> | null = null

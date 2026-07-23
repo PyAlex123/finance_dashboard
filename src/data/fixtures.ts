@@ -168,3 +168,21 @@ export function buildFixtureSnapshot(): DataSnapshot {
     scenarios: structuredClone(scenarios),
   }
 }
+
+/** Пустой слепок ДДС — «чистый лист»: пользователь настраивает всё сам. */
+export function buildEmptySnapshot(): DataSnapshot {
+  return {
+    accounts: [],
+    categories: [],
+    rates: [],
+    openingBalances: [],
+    operations: [],
+    operationLines: [],
+    templates: [{ id: 'tpl-dds', name: 'ДДС', form: 'cf', version: 1 }],
+    items: [],
+    overrides: [],
+    templateVersions: [],
+    projects: [],
+    scenarios: [],
+  }
+}

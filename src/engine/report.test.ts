@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildReport } from './report'
+import { buildReport, rowTotal } from './report'
 import { buildFixtureSnapshot } from '../data/fixtures'
 import { fromMajor } from '../domain/money'
 import type { DataSnapshot } from '../domain/types'
@@ -50,6 +50,17 @@ describe('отчёт ДДС — совпадение с учебным Excel п�
     expect(row('bal_card_usd')).toEqual(maj([2212500, 962500, 1612500]))
     expect(row('bal_settle')).toEqual(maj([1005000, 571000, 3000]))
     expect(row('bal_total')).toEqual(maj([5112500, 4323500, 3585500]))
+  })
+
+  it('колонка ИТОГО: потоки — сумма, остатки — последний период', () => {
+    const rep = report()
+    const total = (code: string) => rowTotal(rep.rows.find((r) => r.code === code)!)
+    expect(total('v_total_in')).toBe(fromMajor(9300000)) // сумма
+    expect(total('exp_total')).toBe(fromMajor(10977000)) // сумма
+    expect(total('v_result')).toBe(fromMajor(-1677000)) // сумма
+    expect(total('bal_total')).toBe(fromMajor(3585500)) // последний период
+    expect(total('bal_cash')).toBe(fromMajor(1445000)) // остаток → последний
+    expect(rowTotal(rep.rows.find((r) => r.code === 's_totals')!)).toBeNull() // header
   })
 
   it('строки-заголовки без значений; глубина отступов', () => {

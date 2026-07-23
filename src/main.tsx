@@ -5,7 +5,11 @@ import 'ag-grid-community/styles/ag-grid.css'
 import 'ag-grid-community/styles/ag-theme-quartz.css'
 import './index.css'
 import { store } from './store'
+import { initPersistence } from './data/persistence'
+import { createIdbRepo } from './data/idbRepo'
 import App from './App.tsx'
+
+void initPersistence(store, createIdbRepo())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

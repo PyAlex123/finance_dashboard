@@ -57,6 +57,7 @@ export default function JournalGrid({ onSelect }: { onSelect?: (id: string | nul
         defaultColDef={{ resizable: true, sortable: true }}
         rowSelection="single"
         onSelectionChanged={(e) => onSelect?.(e.api.getSelectedRows()[0]?.id ?? null)}
+        overlayNoRowsTemplate="Журнал пуст — нажмите «+ Операция», чтобы добавить запись"
         suppressCellFocus
       />
     </div>

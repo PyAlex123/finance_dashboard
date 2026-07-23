@@ -7,14 +7,14 @@ import './index.css'
 import { store } from './store'
 import { initPersistence } from './data/persistence'
 import { createIdbRepo } from './data/idbRepo'
-import App from './App.tsx'
+import Shell from './Shell.tsx'
 
 void initPersistence(store, createIdbRepo())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      <App />
+      <Shell />
     </Provider>
   </StrictMode>,
 )

@@ -14,17 +14,35 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'refs', label: 'Справочники' },
 ]
 
-export default function App() {
+export interface AppProps {
+  username?: string
+  onBack?: () => void
+  onLogout?: () => void
+}
+
+// Рабочая область ДДС (вкладки). Оборачивается Shell (вход/выбор модуля).
+export default function App({ username, onBack, onLogout }: AppProps = {}) {
   const [tab, setTab] = useState<Tab>('journal')
 
   return (
     <div className="app">
       <header className="app__header">
-        <div>
-          <h1 className="app__title">Финансовые отчёты — ДДС</h1>
-          <p className="app__subtitle">Учебный проект · январь–март 2025</p>
+        <div className="app__headleft">
+          {onBack && (
+            <button className="btn btn--small app__back" onClick={onBack} title="К выбору отчёта">
+              ← Модули
+            </button>
+          )}
+          <div>
+            <h1 className="app__title">ДДС — движение денежных средств</h1>
+            <p className="app__subtitle">Рабочая область</p>
+          </div>
         </div>
-        <DataMenu />
+        <div className="app__headright">
+          <DataMenu />
+          {username && <span className="app__user">👤 {username}</span>}
+          {onLogout && <button className="btn btn--small" onClick={onLogout}>Выйти</button>}
+        </div>
       </header>
 
       <nav className="tabs">

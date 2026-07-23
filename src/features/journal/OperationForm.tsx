@@ -73,6 +73,12 @@ export default function OperationForm({ onClose }: { onClose: () => void }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3 className="modal__title">Новая операция</h3>
 
+        {accounts.length === 0 && (
+          <div className="modal__error">
+            Сначала добавьте хотя бы один счёт во вкладке «Справочники».
+          </div>
+        )}
+
         <div className="form-grid">
           <label className="field">
             <span>Тип</span>
@@ -127,7 +133,7 @@ export default function OperationForm({ onClose }: { onClose: () => void }) {
         {error && <div className="modal__error">{error}</div>}
 
         <div className="modal__actions">
-          <button className="btn btn--primary" onClick={submit}>Добавить</button>
+          <button className="btn btn--primary" onClick={submit} disabled={accounts.length === 0}>Добавить</button>
           <button className="btn" onClick={onClose}>Отмена</button>
         </div>
       </div>

@@ -14,10 +14,10 @@ function renderApp() {
   )
 }
 
-describe('App монтируется без ошибок рантайма', () => {
+describe('App (рабочая область ДДС) монтируется без ошибок рантайма', () => {
   it('шапка и вкладки на месте', () => {
     renderApp()
-    expect(screen.getByText('Финансовые отчёты — ДДС')).toBeInTheDocument()
+    expect(screen.getByText('ДДС — движение денежных средств')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Отчёт ДДС' })).toBeInTheDocument()
   })
 

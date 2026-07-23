@@ -4,7 +4,7 @@ import { selectData } from '../../store/selectors'
 import { hydrate } from '../../store/dataSlice'
 import { exportJson, importJson } from '../../data/json'
 import { exportXlsx, importXlsx } from '../../data/xlsx'
-import { buildFixtureSnapshot } from '../../data/fixtures'
+import { buildFixtureSnapshot, buildEmptySnapshot } from '../../data/fixtures'
 
 export default function DataMenu() {
   const dispatch = useAppDispatch()
@@ -55,12 +55,22 @@ export default function DataMenu() {
       <button
         className="btn btn--small"
         onClick={() => {
-          if (confirm('Сбросить к учебным данным? Текущие изменения будут потеряны.')) {
+          if (confirm('Загрузить учебный пример (янв–март)? Текущие данные будут заменены.')) {
             dispatch(hydrate(buildFixtureSnapshot()))
           }
         }}
       >
-        Сброс к учебным
+        Загрузить пример
+      </button>
+      <button
+        className="btn btn--small"
+        onClick={() => {
+          if (confirm('Очистить всё до чистого листа? Текущие данные будут удалены.')) {
+            dispatch(hydrate(buildEmptySnapshot()))
+          }
+        }}
+      >
+        Чистый лист
       </button>
       {msg && <span className="datamenu__msg">{msg}</span>}
       <input

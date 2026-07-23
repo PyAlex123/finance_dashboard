@@ -52,6 +52,21 @@ export default function ReportView() {
   const report = useAppSelector(selectReport)
   const [editing, setEditing] = useState<string | null>(null)
 
+  if (report.rows.length === 0) {
+    return (
+      <div className="report-layout">
+        <div className="report empty-state">
+          <div className="empty-state__title">Отчёт пуст</div>
+          <p className="empty-state__text">
+            Добавьте статьи во вкладке «Шаблон», счета и категории — в «Справочниках»,
+            операции — в «Журнале». Или нажмите «Загрузить пример» вверху.
+          </p>
+        </div>
+        <ChecksPanel />
+      </div>
+    )
+  }
+
   return (
     <div className="report-layout">
       <div className="report">

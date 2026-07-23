@@ -163,6 +163,7 @@ export function buildFixtureSnapshot(): DataSnapshot {
     templates: structuredClone(DDS_TEMPLATE),
     items: structuredClone(DDS_ITEMS),
     overrides: [],
+    templateVersions: [],
     projects: structuredClone(projects),
     scenarios: structuredClone(scenarios),
   }

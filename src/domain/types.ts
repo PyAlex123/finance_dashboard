@@ -109,6 +109,15 @@ export interface ItemOverride {
   formula: string
 }
 
+/** Лёгкий именованный снимок дерева статей шаблона (Фаза 2). */
+export interface TemplateVersion {
+  id: string
+  name: string
+  createdAt: IsoDate
+  form: ReportForm
+  items: Item[]
+}
+
 export interface Project {
   id: string
   name: string
@@ -134,6 +143,7 @@ export interface DataSnapshot {
   templates: Template[]
   items: Item[]
   overrides: ItemOverride[]
+  templateVersions: TemplateVersion[]
   projects: Project[]
   scenarios: Scenario[]
 }

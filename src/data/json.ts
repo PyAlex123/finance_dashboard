@@ -39,5 +39,16 @@ export function importJson(text: string): DataSnapshot {
   if (!data || !Array.isArray(data.operations) || !Array.isArray(data.accounts)) {
     throw new Error('Не похоже на файл финансовых отчётов')
   }
-  return data
+  return normalizeSnapshot(data)
+}
+
+/** Гарантировать наличие полей, добавленных в новых версиях (совместимость старых файлов). */
+export function normalizeSnapshot(data: DataSnapshot): DataSnapshot {
+  return {
+    ...data,
+    overrides: data.overrides ?? [],
+    templateVersions: data.templateVersions ?? [],
+    projects: data.projects ?? [],
+    scenarios: data.scenarios ?? [],
+  }
 }

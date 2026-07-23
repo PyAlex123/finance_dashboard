@@ -6,6 +6,7 @@ import type {
   Account,
   Category,
   DataSnapshot,
+  Item,
   ItemOverride,
   OpeningBalance,
   Operation,
@@ -117,6 +118,73 @@ const dataSlice = createSlice({
     clearOverride(state, action: PayloadAction<string>) {
       state.overrides = state.overrides.filter((o) => o.itemCode !== action.payload)
     },
+
+    // --- Статьи шаблона (дерево отчёта) ---
+    upsertItem: {
+      reducer(state, action: PayloadAction<Item>) {
+        const idx = state.items.findIndex((i) => i.id === action.payload.id)
+        if (idx >= 0) state.items[idx] = action.payload
+        else state.items.push(action.payload)
+      },
+      prepare(item: Item | Omit<Item, 'id'>) {
+        return { payload: 'id' in item ? item : { ...item, id: nanoid() } }
+      },
+    },
+    deleteItem(state, action: PayloadAction<string>) {
+      // удаляем по code; детей переподвешиваем на родителя удаляемой статьи
+      const code = action.payload
+      const victim = state.items.find((i) => i.code === code)
+      if (!victim) return
+      const newParent = victim.parentCode
+      for (const it of state.items) {
+        if (it.parentCode === code) it.parentCode = newParent
+      }
+      state.items = state.items.filter((i) => i.code !== code)
+      state.overrides = state.overrides.filter((o) => o.itemCode !== code)
+    },
+    /** Переместить статью вверх/вниз среди соседей (тот же parentCode). */
+    moveItem(state, action: PayloadAction<{ code: string; dir: 'up' | 'down' }>) {
+      const { code, dir } = action.payload
+      const item = state.items.find((i) => i.code === code)
+      if (!item) return
+      const siblings = state.items
+        .filter((i) => i.parentCode === item.parentCode)
+        .sort((a, b) => a.order - b.order)
+      const pos = siblings.findIndex((i) => i.code === code)
+      const swapWith = dir === 'up' ? pos - 1 : pos + 1
+      if (swapWith < 0 || swapWith >= siblings.length) return
+      const a = siblings[pos]
+      const b = siblings[swapWith]
+      const ao = a.order
+      a.order = b.order
+      b.order = ao
+    },
+
+    // --- Версии шаблона (лёгкие снимки дерева статей) ---
+    saveTemplateVersion: {
+      reducer(state, action: PayloadAction<{ id: string; name: string; createdAt: string }>) {
+        const form = state.templates[0]?.form ?? 'cf'
+        state.templateVersions.push({
+          id: action.payload.id,
+          name: action.payload.name,
+          createdAt: action.payload.createdAt,
+          form,
+          items: JSON.parse(JSON.stringify(state.items)),
+        })
+      },
+      prepare(name: string) {
+        return { payload: { id: nanoid(), name, createdAt: new Date().toISOString() } }
+      },
+    },
+    restoreTemplateVersion(state, action: PayloadAction<string>) {
+      const version = state.templateVersions.find((v) => v.id === action.payload)
+      if (!version) return
+      state.items = JSON.parse(JSON.stringify(version.items))
+      if (state.templates[0]) state.templates[0].version += 1
+    },
+    deleteTemplateVersion(state, action: PayloadAction<string>) {
+      state.templateVersions = state.templateVersions.filter((v) => v.id !== action.payload)
+    },
   },
 })
 
@@ -132,6 +200,12 @@ export const {
   upsertOpeningBalance,
   setOverride,
   clearOverride,
+  upsertItem,
+  deleteItem,
+  moveItem,
+  saveTemplateVersion,
+  restoreTemplateVersion,
+  deleteTemplateVersion,
 } = dataSlice.actions
 
 export default dataSlice.reducer

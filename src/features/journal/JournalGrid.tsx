@@ -18,7 +18,7 @@ function moneyFormatter(p: ValueFormatterParams<JournalRow, Money>) {
   return formatMoney(v)
 }
 
-export default function JournalGrid() {
+export default function JournalGrid({ onSelect }: { onSelect?: (id: string | null) => void }) {
   const accounts = useAppSelector(selectActiveAccounts)
   const rows = useAppSelector(selectJournalRows)
 
@@ -55,6 +55,8 @@ export default function JournalGrid() {
           p.data ? { background: ROW_TINT[p.data.type] ?? undefined } : undefined
         }
         defaultColDef={{ resizable: true, sortable: true }}
+        rowSelection="single"
+        onSelectionChanged={(e) => onSelect?.(e.api.getSelectedRows()[0]?.id ?? null)}
         suppressCellFocus
       />
     </div>

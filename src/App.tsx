@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import JournalGrid from './features/journal/JournalGrid'
+import JournalPanel from './features/journal/JournalPanel'
 import ReportView from './features/report/ReportView'
+import RefsView from './features/refs/RefsView'
 
 type Tab = 'journal' | 'report' | 'refs'
 
@@ -33,9 +34,9 @@ export default function App() {
       </nav>
 
       <main className="app__content">
-        {tab === 'journal' && <JournalGrid />}
+        {tab === 'journal' && <JournalPanel />}
         {tab === 'report' && <ReportView />}
-        {tab === 'refs' && <p className="placeholder">Справочники появятся на Шаге 11.</p>}
+        {tab === 'refs' && <RefsView />}
       </main>
     </div>
   )

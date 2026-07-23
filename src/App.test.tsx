@@ -36,4 +36,11 @@ describe('App монтируется без ошибок рантайма', () =
     expect(screen.getByText('Счета')).toBeInTheDocument()
     expect(screen.getByText('Категории')).toBeInTheDocument()
   })
+
+  it('вкладка «Шаблон» показывает редактор дерева и блок версий', () => {
+    renderApp()
+    fireEvent.click(screen.getByRole('button', { name: 'Шаблон' }))
+    expect(screen.getByText('Версии шаблона')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ Статья верхнего уровня' })).toBeInTheDocument()
+  })
 })

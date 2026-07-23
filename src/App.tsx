@@ -2,13 +2,15 @@ import { useState } from 'react'
 import JournalPanel from './features/journal/JournalPanel'
 import ReportView from './features/report/ReportView'
 import RefsView from './features/refs/RefsView'
+import TemplateEditor from './features/template/TemplateEditor'
 import DataMenu from './features/data/DataMenu'
 
-type Tab = 'journal' | 'report' | 'refs'
+type Tab = 'journal' | 'report' | 'template' | 'refs'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'journal', label: 'Журнал' },
   { id: 'report', label: 'Отчёт ДДС' },
+  { id: 'template', label: 'Шаблон' },
   { id: 'refs', label: 'Справочники' },
 ]
 
@@ -40,6 +42,7 @@ export default function App() {
       <main className="app__content">
         {tab === 'journal' && <JournalPanel />}
         {tab === 'report' && <ReportView />}
+        {tab === 'template' && <TemplateEditor />}
         {tab === 'refs' && <RefsView />}
       </main>
     </div>

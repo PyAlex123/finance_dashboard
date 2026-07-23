@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectData } from '../../store/selectors'
 import { hydrate } from '../../store/dataSlice'
 import { exportJson, importJson } from '../../data/json'
+import { exportXlsx, importXlsx } from '../../data/xlsx'
 import { buildFixtureSnapshot } from '../../data/fixtures'
 
 export default function DataMenu() {
@@ -11,19 +12,33 @@ export default function DataMenu() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState('')
 
-  function doExport() {
-    const blob = new Blob([exportJson(data)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
+  function download(bytes: BlobPart, name: string, mime: string) {
+    const url = URL.createObjectURL(new Blob([bytes], { type: mime }))
     const a = document.createElement('a')
     a.href = url
-    a.download = `dds-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = name
     a.click()
     URL.revokeObjectURL(url)
   }
 
+  const stamp = () => new Date().toISOString().slice(0, 10)
+
+  function doExportJson() {
+    download(exportJson(data), `dds-${stamp()}.json`, 'application/json')
+  }
+  function doExportXlsx() {
+    download(
+      exportXlsx(data),
+      `dds-${stamp()}.xlsx`,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+  }
+
   async function doImport(file: File) {
     try {
-      const snapshot = importJson(await file.text())
+      const snapshot = file.name.toLowerCase().endsWith('.xlsx')
+        ? importXlsx(await file.arrayBuffer())
+        : importJson(await file.text())
       dispatch(hydrate(snapshot))
       setMsg('Импортировано ✓')
     } catch (e) {
@@ -34,8 +49,9 @@ export default function DataMenu() {
 
   return (
     <div className="datamenu">
-      <button className="btn btn--small" onClick={doExport}>Экспорт JSON</button>
-      <button className="btn btn--small" onClick={() => fileRef.current?.click()}>Импорт JSON</button>
+      <button className="btn btn--small" onClick={doExportXlsx}>Экспорт Excel</button>
+      <button className="btn btn--small" onClick={doExportJson}>Экспорт JSON</button>
+      <button className="btn btn--small" onClick={() => fileRef.current?.click()}>Импорт файла</button>
       <button
         className="btn btn--small"
         onClick={() => {
@@ -50,7 +66,7 @@ export default function DataMenu() {
       <input
         ref={fileRef}
         type="file"
-        accept="application/json,.json"
+        accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         style={{ display: 'none' }}
         onChange={(e) => {
           const f = e.target.files?.[0]

@@ -191,6 +191,7 @@ export function withDefaultAccounts(data: DataSnapshot): DataSnapshot {
 export function buildEmptySnapshot(): DataSnapshot {
   return {
     accounts: structuredClone(DEFAULT_ACCOUNTS),
+    defaultsSeeded: true,
     categories: [],
     rates: [],
     openingBalances: [],

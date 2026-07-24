@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAppDispatch, useAppSelector } from './store/hooks'
-import { selectAccounts } from './store/selectors'
+import { useAppDispatch } from './store/hooks'
 import { ensureDefaultAccounts } from './store/dataSlice'
 import JournalPanel from './features/journal/JournalPanel'
 import ReportView from './features/report/ReportView'
@@ -27,13 +26,12 @@ export interface AppProps {
 export default function App({ username, onBack, onLogout }: AppProps = {}) {
   const [tab, setTab] = useState<Tab>('journal')
   const dispatch = useAppDispatch()
-  const accounts = useAppSelector(selectAccounts)
 
-  // ДДС всегда открывается со счетами по умолчанию (Р/С, Наличные, Карта),
-  // даже если сохранённый ранее снимок был без счетов.
+  // При открытии ДДС создаём недостающие счета по умолчанию (Р/С, Наличные, Карта).
+  // Работает и когда часть счетов уже заведена пользователем.
   useEffect(() => {
-    if (accounts.length === 0) dispatch(ensureDefaultAccounts())
-  }, [accounts.length, dispatch])
+    dispatch(ensureDefaultAccounts())
+  }, [dispatch])
 
   return (
     <div className="app">

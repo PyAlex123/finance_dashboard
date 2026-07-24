@@ -155,6 +155,8 @@ export interface DataSnapshot {
   cellValues: CellValue[]
   /** Явный список колонок-периодов для форм без журнала (P&L). */
   plPeriods: PeriodKey[]
+  /** Счета по умолчанию уже создавались (чтобы не возвращать удалённые пользователем). */
+  defaultsSeeded?: boolean
   projects: Project[]
   scenarios: Scenario[]
 }

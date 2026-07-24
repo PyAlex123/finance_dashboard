@@ -5,9 +5,10 @@ import { runChecks, allChecksOk } from '../engine/checks'
 import { exportJson, importJson } from './json'
 
 describe('пустой снимок (чистый лист)', () => {
-  it('все сущности пусты, есть один пустой шаблон', () => {
+  it('данных нет, но есть счета по умолчанию и пустой шаблон', () => {
     const s = buildEmptySnapshot()
-    expect(s.accounts).toHaveLength(0)
+    // счета по умолчанию — чтобы можно было сразу вводить операции
+    expect(s.accounts.map((a) => a.code)).toEqual(['settlement', 'cash', 'card'])
     expect(s.categories).toHaveLength(0)
     expect(s.operations).toHaveLength(0)
     expect(s.items).toHaveLength(0)

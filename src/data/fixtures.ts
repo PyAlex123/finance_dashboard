@@ -171,10 +171,17 @@ export function buildFixtureSnapshot(): DataSnapshot {
   }
 }
 
-/** Пустой слепок ДДС — «чистый лист»: пользователь настраивает всё сам. */
+/** Счета по умолчанию для нового ДДС — можно сразу вводить операции. */
+export const DEFAULT_ACCOUNTS: Account[] = [
+  { id: 'acc-settlement', code: 'settlement', name: 'Р/С', currency: 'UZS', order: 1, active: true },
+  { id: 'acc-cash', code: 'cash', name: 'Наличные', currency: 'UZS', order: 2, active: true },
+  { id: 'acc-card', code: 'card', name: 'Карта', currency: 'UZS', order: 3, active: true },
+]
+
+/** Пустой слепок ДДС — «чистый лист» со счетами по умолчанию. */
 export function buildEmptySnapshot(): DataSnapshot {
   return {
-    accounts: [],
+    accounts: structuredClone(DEFAULT_ACCOUNTS),
     categories: [],
     rates: [],
     openingBalances: [],

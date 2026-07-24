@@ -10,7 +10,11 @@
       "Bash(npx tsc *)",
       "Bash(curl -s http://localhost:5173/)",
       "Bash(curl -s http://localhost:5173/src/main.tsx)",
-      "Bash(node -e \"console.log\\('xlsx', require\\('xlsx/package.json'\\).version\\)\")"
+      "Bash(node -e \"console.log\\('xlsx', require\\('xlsx/package.json'\\).version\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s http://localhost:5173/src/data/fixtures.ts)",
+      "Bash(curl -s http://localhost:5173/src/data/persistence.ts)",
+      "Bash(curl -s http://localhost:5173/src/features/journal/OperationForm.tsx)"
     ]
   }
 }

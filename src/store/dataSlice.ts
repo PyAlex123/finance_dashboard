@@ -16,7 +16,7 @@ import type {
   ReportForm,
 } from '../domain/types'
 import type { Money } from '../domain/money'
-import { buildFixtureSnapshot } from '../data/fixtures'
+import { buildFixtureSnapshot, DEFAULT_ACCOUNTS } from '../data/fixtures'
 
 export type DataState = DataSnapshot
 
@@ -79,6 +79,14 @@ const dataSlice = createSlice({
     },
     deleteAccount(state, action: PayloadAction<string>) {
       state.accounts = state.accounts.filter((a) => a.id !== action.payload)
+    },
+    /**
+     * Гарантировать счета по умолчанию (Р/С, Наличные, Карта), если счетов нет вообще.
+     * Идемпотентно: при непустом справочнике ничего не делает.
+     */
+    ensureDefaultAccounts(state) {
+      if (state.accounts.length > 0) return
+      state.accounts.push(...structuredClone(DEFAULT_ACCOUNTS))
     },
     /** Переименовать код счёта и каскадно обновить ссылки в правилах агрегатов. */
     renameAccountCode(state, action: PayloadAction<{ id: string; code: string }>) {
@@ -287,6 +295,7 @@ export const {
   upsertAccount,
   deleteAccount,
   renameAccountCode,
+  ensureDefaultAccounts,
   upsertCategory,
   deleteCategory,
   renameCategoryCode,

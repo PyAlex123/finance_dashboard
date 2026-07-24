@@ -341,7 +341,7 @@ export function parseDdsJournal(grid: Grid, mapping: DdsMapping, opts: { default
     if (RE_TYPE.transfer.test(typeText)) type = 'transfer'
     else if (RE_TYPE.expense.test(typeText)) type = 'expense'
     else if (RE_TYPE.income.test(typeText)) type = 'income'
-    else type = inferType(legs)
+    else type = inferType(legs.map((l) => ({ amount: l.money })))
 
     const dir = type === 'income' ? 'in' : type === 'expense' ? 'out' : 'transfer'
     const categoryId = ensureCategory(catName, dir)

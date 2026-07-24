@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { makeStore } from '../../store'
-import { hydrate } from '../../store/dataSlice'
+import { hydrate, deleteOperation } from '../../store/dataSlice'
 import { buildEmptySnapshot } from '../../data/fixtures'
 import JournalPanel from './JournalPanel'
 import { todayIso } from './rowEdit'
@@ -41,6 +41,30 @@ describe('JournalPanel — быстрый ввод', () => {
     expect(screen.queryByText('Новая операция')).toBeNull() // попап закрылся
   })
 
+  it('по умолчанию тип — приход, а не расход', () => {
+    const store = renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
+    fireEvent.change(screen.getByPlaceholderText('650000'), { target: { value: '100000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }))
+
+    const op = store.getState().data.operations[0]
+    expect(op.type).toBe('income')
+    // приход записывается положительной проводкой
+    expect(store.getState().data.operationLines[0].amount > 0n).toBe(true)
+  })
+
+  it('удаление операции убирает её вместе с проводками', () => {
+    const store = renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
+    fireEvent.change(screen.getByPlaceholderText('650000'), { target: { value: '100000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }))
+    const id = store.getState().data.operations[0].id
+
+    store.dispatch(deleteOperation(id))
+    expect(store.getState().data.operations).toHaveLength(0)
+    expect(store.getState().data.operationLines).toHaveLength(0)
+  })
+
   it('категорию можно создать прямо в попапе', () => {
     const store = renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
@@ -50,7 +74,7 @@ describe('JournalPanel — быстрый ввод', () => {
 
     const cats = store.getState().data.categories
     expect(cats.map((c) => c.name)).toContain('Аренда')
-    expect(cats[0].direction).toBe('out') // тип по умолчанию — расход
+    expect(cats[0].direction).toBe('in') // тип по умолчанию — приход
   })
 
   it('«+ Счёт» добавляет счёт с автоматическим кодом', () => {

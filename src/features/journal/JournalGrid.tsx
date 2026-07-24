@@ -44,7 +44,12 @@ function toSnapshot(row: JournalRow, accounts: Account[]): RowSnapshot {
   }
 }
 
-export default function JournalGrid({ onSelect }: { onSelect?: (id: string | null) => void }) {
+export default function JournalGrid({
+  onEdit, onDelete,
+}: {
+  onEdit?: (id: string) => void
+  onDelete?: (id: string) => void
+}) {
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectActiveAccounts)
   const categories = useAppSelector(selectCategories)
@@ -116,6 +121,34 @@ export default function JournalGrid({ onSelect }: { onSelect?: (id: string | nul
       },
     }))
 
+    const actions: ColDef<JournalRow> = {
+      headerName: '',
+      width: 92,
+      pinned: 'right',
+      editable: false,
+      sortable: false,
+      resizable: false,
+      cellRenderer: (p: { data?: JournalRow }) =>
+        p.data ? (
+          <span className="journal__actions">
+            <button
+              className="btn btn--small"
+              title="Изменить операцию"
+              onClick={() => onEdit?.(p.data!.id)}
+            >
+              ✎
+            </button>
+            <button
+              className="btn btn--small btn--danger"
+              title="Удалить операцию"
+              onClick={() => onDelete?.(p.data!.id)}
+            >
+              ✕
+            </button>
+          </span>
+        ) : null,
+    }
+
     return [
       ...base,
       ...accCols,
@@ -124,8 +157,9 @@ export default function JournalGrid({ onSelect }: { onSelect?: (id: string | nul
         valueSetter: (p: ValueSetterParams<JournalRow>) =>
           edit(p.data, { note: String(p.newValue ?? '') }),
       },
+      actions,
     ]
-  }, [accounts, categories, dispatch])
+  }, [accounts, categories, dispatch, onEdit, onDelete])
 
   return (
     <div className="ag-theme-quartz" style={{ height: '100%', width: '100%' }}>
@@ -137,8 +171,6 @@ export default function JournalGrid({ onSelect }: { onSelect?: (id: string | nul
           p.data ? { background: ROW_TINT[p.data.type] ?? undefined } : undefined
         }
         defaultColDef={{ resizable: true, sortable: true, editable: true }}
-        rowSelection="single"
-        onSelectionChanged={(e) => onSelect?.(e.api.getSelectedRows()[0]?.id ?? null)}
         overlayNoRowsTemplate="Журнал пуст — нажмите «Сегодня», чтобы добавить запись"
         stopEditingWhenCellsLoseFocus
       />

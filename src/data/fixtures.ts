@@ -178,6 +178,15 @@ export const DEFAULT_ACCOUNTS: Account[] = [
   { id: 'acc-card', code: 'card', name: 'Карта', currency: 'UZS', order: 3, active: true },
 ]
 
+/**
+ * Дополнить снимок счетами по умолчанию, если счетов нет вообще.
+ * Нужно для снимков, сохранённых до появления счетов по умолчанию.
+ */
+export function withDefaultAccounts(data: DataSnapshot): DataSnapshot {
+  if (data.accounts.length > 0) return data
+  return { ...data, accounts: structuredClone(DEFAULT_ACCOUNTS) }
+}
+
 /** Пустой слепок ДДС — «чистый лист» со счетами по умолчанию. */
 export function buildEmptySnapshot(): DataSnapshot {
   return {

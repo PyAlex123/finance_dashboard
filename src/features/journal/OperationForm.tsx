@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { nanoid } from '@reduxjs/toolkit'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectActiveAccounts, selectCategories } from '../../store/selectors'
-import { addOperation, upsertCategory, type OperationInput } from '../../store/dataSlice'
-import { parseMoney } from '../../domain/money'
+import { selectActiveAccounts, selectCategories, selectData } from '../../store/selectors'
+import {
+  addOperation, updateOperation, upsertCategory, type OperationInput,
+} from '../../store/dataSlice'
+import { parseMoney, toMajorNumber } from '../../domain/money'
 import { autoCode } from '../../domain/codes'
 import { directionForType, todayIso } from './rowEdit'
 import type { OperationType } from '../../domain/types'
@@ -14,20 +16,38 @@ const TYPE_OPTIONS: { value: OperationType; label: string }[] = [
   { value: 'transfer', label: '🔵 Переброска' },
 ]
 
-export default function OperationForm({ onClose }: { onClose: () => void }) {
+export default function OperationForm({
+  onClose, operationId,
+}: {
+  onClose: () => void
+  /** Если задан — форма редактирует существующую операцию. */
+  operationId?: string
+}) {
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectActiveAccounts)
   const categories = useAppSelector(selectCategories)
+  const data = useAppSelector(selectData)
 
-  const [type, setType] = useState<OperationType>('expense')
-  const [date, setDate] = useState(todayIso())
-  const [description, setDescription] = useState('')
-  const [note, setNote] = useState('')
-  const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
-  const [toAccountId, setToAccountId] = useState(accounts[1]?.id ?? '')
-  const [amount, setAmount] = useState('')
+  // разбор существующей операции для режима правки
+  const editing = operationId ? data.operations.find((o) => o.id === operationId) ?? null : null
+  const editLines = editing ? data.operationLines.filter((l) => l.operationId === editing.id) : []
+  const fromLine = editing?.type === 'transfer'
+    ? editLines.find((l) => l.amount < 0n)
+    : editLines[0]
+  const toLine = editing?.type === 'transfer' ? editLines.find((l) => l.amount > 0n) : undefined
+  const initialAmount = fromLine
+    ? String(Math.abs(toMajorNumber(fromLine.amount)))
+    : ''
+
+  const [type, setType] = useState<OperationType>(editing?.type ?? 'income')
+  const [date, setDate] = useState(editing?.date ?? todayIso())
+  const [description, setDescription] = useState(editing?.description ?? '')
+  const [note, setNote] = useState(editing?.note ?? '')
+  const [accountId, setAccountId] = useState(fromLine?.accountId ?? accounts[0]?.id ?? '')
+  const [toAccountId, setToAccountId] = useState(toLine?.accountId ?? accounts[1]?.id ?? '')
+  const [amount, setAmount] = useState(initialAmount)
   const [error, setError] = useState('')
-  const [categoryId, setCategoryId] = useState<string>('')
+  const [categoryId, setCategoryId] = useState<string>(editing?.categoryId ?? '')
   const [newCategory, setNewCategory] = useState<string | null>(null)
 
   const direction = directionForType(type)
@@ -85,14 +105,22 @@ export default function OperationForm({ onClose }: { onClose: () => void }) {
         lines: [{ accountId, amount: signed, currency }],
       }
     }
-    dispatch(addOperation(input))
+    if (editing) {
+      // правка: сохраняем id операции, проводки пересобираем заново
+      dispatch(updateOperation({
+        operation: { ...input.operation, id: editing.id },
+        lines: input.lines.map((l, i) => ({ ...l, id: `${editing.id}-l${i + 1}`, operationId: editing.id })),
+      }))
+    } else {
+      dispatch(addOperation(input))
+    }
     onClose()
   }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal__title">Новая операция</h3>
+        <h3 className="modal__title">{editing ? 'Изменить операцию' : 'Новая операция'}</h3>
 
         {accounts.length === 0 && (
           <div className="modal__error">
@@ -190,7 +218,9 @@ export default function OperationForm({ onClose }: { onClose: () => void }) {
         {error && <div className="modal__error">{error}</div>}
 
         <div className="modal__actions">
-          <button className="btn btn--primary" onClick={submit} disabled={accounts.length === 0}>Добавить</button>
+          <button className="btn btn--primary" onClick={submit} disabled={accounts.length === 0}>
+            {editing ? 'Сохранить' : 'Добавить'}
+          </button>
           <button className="btn" onClick={onClose}>Отмена</button>
         </div>
       </div>

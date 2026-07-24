@@ -10,8 +10,8 @@ import type { Currency } from '../../domain/types'
 export default function JournalPanel() {
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectAccounts)
-  const [selected, setSelected] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [addingAccount, setAddingAccount] = useState(false)
   const [accName, setAccName] = useState('')
   const [accCur, setAccCur] = useState<Currency>('UZS')
@@ -33,14 +33,7 @@ export default function JournalPanel() {
   return (
     <div className="panel">
       <div className="toolbar">
-        <button className="btn btn--primary" onClick={() => setFormOpen(true)}>Сегодня</button>
-        <button
-          className="btn btn--danger"
-          disabled={!selected}
-          onClick={() => { if (selected) { dispatch(deleteOperation(selected)); setSelected(null) } }}
-        >
-          Удалить выбранную
-        </button>
+        <button className="btn btn--primary" onClick={() => { setEditingId(null); setFormOpen(true) }}>Сегодня</button>
 
         {addingAccount ? (
           <span className="toolbar__inline">
@@ -63,12 +56,20 @@ export default function JournalPanel() {
           <button className="btn" onClick={() => setAddingAccount(true)}>+ Счёт</button>
         )}
 
-        <span className="toolbar__hint">Двойной клик по ячейке — правка · клик по строке — выбор</span>
+        <span className="toolbar__hint">✎ — изменить запись · ✕ — удалить · двойной клик по ячейке — быстрая правка</span>
       </div>
       <div className="panel__grid">
-        <JournalGrid onSelect={setSelected} />
+        <JournalGrid
+          onEdit={(id) => { setEditingId(id); setFormOpen(true) }}
+          onDelete={(id) => { if (confirm('Удалить операцию?')) dispatch(deleteOperation(id)) }}
+        />
       </div>
-      {formOpen && <OperationForm onClose={() => setFormOpen(false)} />}
+      {formOpen && (
+        <OperationForm
+          operationId={editingId ?? undefined}
+          onClose={() => { setFormOpen(false); setEditingId(null) }}
+        />
+      )}
     </div>
   )
 }

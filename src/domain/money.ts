@@ -59,13 +59,13 @@ export const neg = (a: Money): Money => -a
 export const sum = (xs: Money[]): Money => xs.reduce((acc, x) => acc + x, 0n)
 
 /**
- * Перевод суммы в USD (минорные USD-центы) в UZS по курсу.
- * rateMinorUzsPerUsd — сколько минорных UZS за 1 мажорный USD.
- * Результат округляется к ближайшему тийину.
+ * Перевод суммы из валюты счёта в базовую валюту по курсу.
+ * amountMinor — сумма в минорных единицах исходной валюты;
+ * rateMinorBasePerMajor — сколько минорных единиц базовой валюты за 1 мажорную исходную.
+ * Результат округляется к ближайшей минорной единице.
  */
-export function convertUsdToUzs(usdMinor: Money, rateMinorUzsPerUsd: Money): Money {
-  // usdMinor / 100 (USD) * rateMinorUzsPerUsd = минорные UZS
-  const num = usdMinor * rateMinorUzsPerUsd
+export function convertToBase(amountMinor: Money, rateMinorBasePerMajor: Money): Money {
+  const num = amountMinor * rateMinorBasePerMajor
   const q = num / MINOR_PER_MAJOR
   const r = num % MINOR_PER_MAJOR
   // округление половин вверх по модулю
@@ -73,4 +73,9 @@ export function convertUsdToUzs(usdMinor: Money, rateMinorUzsPerUsd: Money): Mon
   if (r >= half) return q + 1n
   if (r <= -half) return q - 1n
   return q
+}
+
+/** Частный случай: USD → UZS (сохранено для совместимости). */
+export function convertUsdToUzs(usdMinor: Money, rateMinorUzsPerUsd: Money): Money {
+  return convertToBase(usdMinor, rateMinorUzsPerUsd)
 }

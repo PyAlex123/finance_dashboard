@@ -34,7 +34,32 @@ export function runChecks(data: DataSnapshot, form: ReportForm = 'cf'): CheckRes
     checkTypeMatchesCategory(data),
     checkEmptyOrZeroOperations(data),
     checkDatesInRange(data),
+    checkRatesAvailable(data),
   ]
+}
+
+/** 6. Для валютных счетов должен быть курс на дату операции. */
+function checkRatesAvailable(data: DataSnapshot): CheckResult {
+  const ctx = buildAggContext(data)
+  const descById = new Map(data.operations.map((o) => [o.id, o.description]))
+  const seen = new Set<string>()
+  const issues: CheckIssue[] = []
+  for (const m of ctx.missingRates) {
+    const key = `${m.currency}|${m.date}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    issues.push({
+      label: `${m.date}: нет курса ${m.currency}${descById.has(m.ref) ? ` · ${descById.get(m.ref)}` : ''}`,
+      ref: m.ref,
+    })
+  }
+  return {
+    id: 'rates-available',
+    title: 'Курсы валют заданы на даты операций',
+    ok: issues.length === 0,
+    severity: 'error',
+    issues,
+  }
 }
 
 /** Лёгкие проверки P&L: отрицательная выручка/чистая прибыль (предупреждения). */

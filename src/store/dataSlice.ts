@@ -12,6 +12,7 @@ import type {
   Operation,
   OperationLine,
   PeriodKey,
+  Rate,
   ReportForm,
 } from '../domain/types'
 import type { Money } from '../domain/money'
@@ -79,6 +80,18 @@ const dataSlice = createSlice({
     deleteAccount(state, action: PayloadAction<string>) {
       state.accounts = state.accounts.filter((a) => a.id !== action.payload)
     },
+    /** Переименовать код счёта и каскадно обновить ссылки в правилах агрегатов. */
+    renameAccountCode(state, action: PayloadAction<{ id: string; code: string }>) {
+      const { id, code } = action.payload
+      const acc = state.accounts.find((a) => a.id === id)
+      if (!acc || !code || acc.code === code) return
+      if (state.accounts.some((a) => a.id !== id && a.code === code)) return // код занят
+      const old = acc.code
+      acc.code = code
+      for (const it of state.items) {
+        if (it.aggRule?.accountCode === old) it.aggRule.accountCode = code
+      }
+    },
 
     // --- Категории ---
     upsertCategory: {
@@ -93,6 +106,18 @@ const dataSlice = createSlice({
     },
     deleteCategory(state, action: PayloadAction<string>) {
       state.categories = state.categories.filter((c) => c.id !== action.payload)
+    },
+    /** Переименовать код категории и каскадно обновить ссылки в правилах агрегатов. */
+    renameCategoryCode(state, action: PayloadAction<{ id: string; code: string }>) {
+      const { id, code } = action.payload
+      const cat = state.categories.find((c) => c.id === id)
+      if (!cat || !code || cat.code === code) return
+      if (state.categories.some((c) => c.id !== id && c.code === code)) return // код занят
+      const old = cat.code
+      cat.code = code
+      for (const it of state.items) {
+        if (it.aggRule?.categoryCode === old) it.aggRule.categoryCode = code
+      }
     },
 
     // --- Начальные остатки ---
@@ -189,6 +214,23 @@ const dataSlice = createSlice({
       state.templateVersions = state.templateVersions.filter((v) => v.id !== action.payload)
     },
 
+    // --- Курсы валют ---
+    upsertRate: {
+      reducer(state, action: PayloadAction<Rate>) {
+        const idx = state.rates.findIndex(
+          (r) => r.currency === action.payload.currency && r.date === action.payload.date,
+        )
+        if (idx >= 0) state.rates[idx] = action.payload
+        else state.rates.push(action.payload)
+      },
+      prepare(rate: Rate | Omit<Rate, 'id'>) {
+        return { payload: 'id' in rate ? rate : { ...rate, id: nanoid() } }
+      },
+    },
+    deleteRate(state, action: PayloadAction<string>) {
+      state.rates = state.rates.filter((r) => r.id !== action.payload)
+    },
+
     // --- Ручные ячейки (input-статьи по периодам; P&L) ---
     setCellValue(state, action: PayloadAction<{ itemCode: string; period: PeriodKey; amount: Money }>) {
       const { itemCode, period, amount } = action.payload
@@ -244,8 +286,10 @@ export const {
   deleteOperation,
   upsertAccount,
   deleteAccount,
+  renameAccountCode,
   upsertCategory,
   deleteCategory,
+  renameCategoryCode,
   upsertOpeningBalance,
   setOverride,
   clearOverride,
@@ -255,6 +299,8 @@ export const {
   saveTemplateVersion,
   restoreTemplateVersion,
   deleteTemplateVersion,
+  upsertRate,
+  deleteRate,
   setCellValue,
   deleteCellValue,
   addPeriod,

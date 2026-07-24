@@ -274,3 +274,15 @@ body {
 .toolbar__inline { display: flex; gap: 6px; align-items: center; }
 .toolbar__inline input, .toolbar__inline select { padding: 6px 8px; border: 1px solid var(--border);
   border-radius: 6px; font-size: 13px; }
+
+/* --- Справочники: правка кодов/названий, курсы --- */
+.refs__code { display: inline-flex; flex-direction: column; gap: 2px; }
+.refs__code-input { width: 130px; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px;
+  font-size: 12px; background: transparent; }
+.refs__code-input:hover, .refs__code-input:focus { border-color: var(--border); background: #fff; outline: none; }
+.refs__code-err { color: #b91c1c; font-size: 10px; }
+.refs__name-input { width: 170px; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px;
+  font-size: 13px; background: transparent; }
+.refs__name-input:hover, .refs__name-input:focus { border-color: var(--border); background: #fff; outline: none; }
+.refs__hint { margin: 0 0 10px; font-size: 12px; color: var(--muted); max-width: 380px; }
+.refs__table select { padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; }

@@ -13,7 +13,7 @@ describe('контрольные суммы', () => {
   it('на учебных данных все проверки сходятся', () => {
     const { res } = checks(buildFixtureSnapshot())
     expect(allChecksOk(res)).toBe(true)
-    expect(res).toHaveLength(5)
+    expect(res).toHaveLength(6)
   })
 
   it('1: несходящаяся переброска ломает тождество остатков', () => {

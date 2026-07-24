@@ -3,6 +3,7 @@ import { getUsername, setUsername as persistUsername, clearUsername } from './fe
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
 import App from './App'
+import PlApp from './features/pnl/PlApp'
 
 // Оболочка-маршрутизатор экранов: вход → выбор модуля → рабочая область.
 // Юзернейм запоминается (localStorage); модуль выбирается заново каждую сессию.
@@ -23,5 +24,7 @@ export default function Shell() {
   if (!username) return <LoginScreen onLogin={login} />
   if (!module) return <ModuleChooser username={username} onPick={setModule} onLogout={logout} />
 
-  return <App username={username} onBack={() => setModule(null)} onLogout={logout} />
+  const workspaceProps = { username, onBack: () => setModule(null), onLogout: logout }
+  if (module === 'pl') return <PlApp {...workspaceProps} />
+  return <App {...workspaceProps} />
 }

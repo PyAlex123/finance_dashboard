@@ -10,7 +10,7 @@ interface ModuleCard {
 
 const MODULES: ModuleCard[] = [
   { id: 'dds', title: 'ДДС', desc: 'Движение денежных средств', icon: '💵' },
-  { id: 'pl', title: 'P&L', desc: 'Прибыли и убытки', icon: '📈', soon: true },
+  { id: 'pl', title: 'P&L', desc: 'Прибыли и убытки', icon: '📈' },
   { id: 'bs', title: 'Баланс', desc: 'Активы и пассивы', icon: '⚖️', soon: true },
 ]
 

@@ -238,3 +238,15 @@ body {
   text-align: center; padding: 60px 24px; }
 .empty-state__title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 .empty-state__text { color: var(--muted); font-size: 14px; max-width: 460px; line-height: 1.5; }
+
+/* --- P&L таблица --- */
+.pl__table thead th { vertical-align: bottom; }
+.pl__cell { width: 100%; min-width: 90px; padding: 4px 6px; border: 1px solid transparent; border-radius: 4px;
+  text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; background: transparent; }
+.pl__cell:hover { border-color: var(--border); }
+.pl__cell:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
+.pl__pct-col { min-width: 64px; color: var(--muted); font-size: 12px; }
+.pl__delcol { margin-left: 6px; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 11px; }
+.pl__delcol:hover { color: #dc2626; }
+.pl__addcol { border: none !important; background: none !important; }
+.empty-state__actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; justify-content: center; }

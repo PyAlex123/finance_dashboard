@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectItems, selectCategories, selectActiveAccounts } from '../../store/selectors'
-import { selectReport } from '../../store/reportSelectors'
+import { selectReport, selectPlReport } from '../../store/reportSelectors'
 import {
   upsertItem, deleteItem, moveItem,
   saveTemplateVersion, restoreTemplateVersion, deleteTemplateVersion,
 } from '../../store/dataSlice'
 import { parseFormula } from '../../engine/formula/parser'
-import type { Account, AggRule, Category, Item, ItemKind, TemplateVersion } from '../../domain/types'
+import type { Account, AggRule, Category, Item, ItemKind, ReportForm, TemplateVersion } from '../../domain/types'
 import type { RootState } from '../../store'
 
 const selectVersions = (s: RootState): TemplateVersion[] => s.data.templateVersions
@@ -33,15 +33,18 @@ function depthOf(code: string, parentByCode: Map<string, string | null>): number
   return d
 }
 
-export default function TemplateEditor() {
+export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
   const dispatch = useAppDispatch()
-  const items = useAppSelector(selectItems)
+  const allItems = useAppSelector(selectItems)
   const categories = useAppSelector(selectCategories)
   const accounts = useAppSelector(selectActiveAccounts)
-  const report = useAppSelector(selectReport)
+  const cfReport = useAppSelector(selectReport)
+  const plReport = useAppSelector(selectPlReport)
   const versions = useAppSelector(selectVersions)
   const [versionName, setVersionName] = useState('')
 
+  const items = allItems.filter((i) => i.form === form)
+  const report = form === 'pl' ? plReport : cfReport
   const parentByCode = new Map(items.map((i) => [i.code, i.parentCode]))
   const sorted = [...items].sort((a, b) => a.order - b.order)
   const maxOrder = items.reduce((m, i) => Math.max(m, i.order), 0)
@@ -59,16 +62,20 @@ export default function TemplateEditor() {
   }
 
   function addItem(parentCode: string | null) {
-    dispatch(upsertItem({
-      templateId: items[0]?.templateId ?? 'tpl-dds',
+    const base = {
+      templateId: items[0]?.templateId ?? (form === 'pl' ? 'tpl-pl' : 'tpl-dds'),
       code: genCode(),
       parentCode,
       order: maxOrder + 1,
-      form: 'cf',
-      kind: 'agg',
+      form,
       name: 'Новая статья',
-      aggRule: { measure: 'in' },
-    }))
+    }
+    // для форм без журнала (P&L) новая статья — ручной ввод; для ДДС — агрегат
+    dispatch(upsertItem(
+      form === 'pl'
+        ? { ...base, kind: 'input' as const }
+        : { ...base, kind: 'agg' as const, aggRule: { measure: 'in' } },
+    ))
   }
 
   return (

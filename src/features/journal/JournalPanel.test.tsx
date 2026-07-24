@@ -21,16 +21,36 @@ function renderPanel() {
 }
 
 describe('JournalPanel — быстрый ввод', () => {
-  it('кнопка «Сегодня» создаёт строку с сегодняшней датой', () => {
-    const store = renderPanel()
-    expect(store.getState().data.operations).toHaveLength(0)
-
+  it('кнопка «Сегодня» открывает попап с подставленной сегодняшней датой', () => {
+    renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
+
+    expect(screen.getByText('Новая операция')).toBeInTheDocument()
+    expect((screen.getByLabelText('Дата') as HTMLInputElement).value).toBe(todayIso())
+  })
+
+  it('попап создаёт операцию на сегодня', () => {
+    const store = renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
+    fireEvent.change(screen.getByPlaceholderText('650000'), { target: { value: '500000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить' }))
 
     const ops = store.getState().data.operations
     expect(ops).toHaveLength(1)
     expect(ops[0].date).toBe(todayIso())
-    expect(ops[0].type).toBe('expense')
+    expect(screen.queryByText('Новая операция')).toBeNull() // попап закрылся
+  })
+
+  it('категорию можно создать прямо в попапе', () => {
+    const store = renderPanel()
+    fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
+    fireEvent.click(screen.getByRole('button', { name: '＋ Новая' }))
+    fireEvent.change(screen.getByPlaceholderText('Название категории'), { target: { value: 'Аренда' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    const cats = store.getState().data.categories
+    expect(cats.map((c) => c.name)).toContain('Аренда')
+    expect(cats[0].direction).toBe('out') // тип по умолчанию — расход
   })
 
   it('«+ Счёт» добавляет счёт с автоматическим кодом', () => {

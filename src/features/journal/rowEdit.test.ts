@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildOperationUpdate, normalizeSign, todayIso, type RowSnapshot } from './rowEdit'
+import { buildOperationUpdate, formatDateLabel, normalizeSign, todayIso, type RowSnapshot } from './rowEdit'
 import { fromMajor } from '../../domain/money'
 import type { Account, Category } from '../../domain/types'
 
@@ -74,6 +74,22 @@ describe('buildOperationUpdate', () => {
     expect(operation.date).toBe('2025-06-02')
     expect(operation.description).toBe('Новое')
     expect(operation.note).toBe('коммент')
+  })
+})
+
+describe('formatDateLabel — слово «Сегодня» в ячейке даты', () => {
+  it('сегодняшняя дата показывается словом', () => {
+    expect(formatDateLabel(todayIso())).toBe('Сегодня')
+  })
+
+  it('вчерашняя — «Вчера», остальные — как есть', () => {
+    const y = new Date()
+    y.setDate(y.getDate() - 1)
+    const p = (n: number) => String(n).padStart(2, '0')
+    const yIso = `${y.getFullYear()}-${p(y.getMonth() + 1)}-${p(y.getDate())}`
+    expect(formatDateLabel(yIso)).toBe('Вчера')
+    expect(formatDateLabel('2025-01-15')).toBe('2025-01-15')
+    expect(formatDateLabel('')).toBe('')
   })
 })
 

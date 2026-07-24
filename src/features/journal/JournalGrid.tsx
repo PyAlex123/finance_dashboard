@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectActiveAccounts, selectCategories } from '../../store/selectors'
 import { updateOperation } from '../../store/dataSlice'
 import { selectJournalRows, TYPE_LABEL, type JournalRow } from './journalRows'
-import { buildOperationUpdate, type RowPatch, type RowSnapshot } from './rowEdit'
+import { buildOperationUpdate, formatDateLabel, todayIso, type RowPatch, type RowSnapshot } from './rowEdit'
 import { formatMoney, parseMoney, type Money } from '../../domain/money'
 import { CategoryCellEditor, DateCellEditor, MoneyCellEditor } from './cellEditors'
 import type { Account, OperationType } from '../../domain/types'
@@ -63,6 +63,9 @@ export default function JournalGrid({ onSelect }: { onSelect?: (id: string | nul
       {
         field: 'date', headerName: 'Дата', width: 130, pinned: 'left',
         cellEditor: DateCellEditor,
+        // сегодняшняя дата показывается словом «Сегодня» прямо в ячейке
+        valueFormatter: (p) => formatDateLabel(String(p.value ?? '')),
+        cellClass: (p) => (String(p.value ?? '') === todayIso() ? 'journal__today' : ''),
         valueSetter: (p: ValueSetterParams<JournalRow>) =>
           edit(p.data, { date: String(p.newValue ?? '').trim() || p.data.date }),
       },

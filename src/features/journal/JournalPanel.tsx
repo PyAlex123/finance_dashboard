@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectAccounts } from '../../store/selectors'
-import { addOperation, deleteOperation, upsertAccount } from '../../store/dataSlice'
+import { deleteOperation, upsertAccount } from '../../store/dataSlice'
 import JournalGrid from './JournalGrid'
-import { todayIso } from './rowEdit'
+import OperationForm from './OperationForm'
 import { autoCode } from '../../domain/codes'
 import type { Currency } from '../../domain/types'
 
@@ -11,17 +11,10 @@ export default function JournalPanel() {
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectAccounts)
   const [selected, setSelected] = useState<string | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [addingAccount, setAddingAccount] = useState(false)
   const [accName, setAccName] = useState('')
   const [accCur, setAccCur] = useState<Currency>('UZS')
-
-  /** Создать строку журнала на сегодня — дата подставляется сразу, остальное правится в таблице. */
-  function addToday() {
-    dispatch(addOperation({
-      operation: { date: todayIso(), type: 'expense', description: '', categoryId: null },
-      lines: [],
-    }))
-  }
 
   function addAccount() {
     const name = accName.trim()
@@ -40,7 +33,7 @@ export default function JournalPanel() {
   return (
     <div className="panel">
       <div className="toolbar">
-        <button className="btn btn--primary" onClick={addToday}>Сегодня</button>
+        <button className="btn btn--primary" onClick={() => setFormOpen(true)}>Сегодня</button>
         <button
           className="btn btn--danger"
           disabled={!selected}
@@ -75,6 +68,7 @@ export default function JournalPanel() {
       <div className="panel__grid">
         <JournalGrid onSelect={setSelected} />
       </div>
+      {formOpen && <OperationForm onClose={() => setFormOpen(false)} />}
     </div>
   )
 }

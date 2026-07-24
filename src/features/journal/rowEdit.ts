@@ -79,7 +79,20 @@ export function buildOperationUpdate(
 
 /** Сегодняшняя дата в локальной зоне как YYYY-MM-DD. */
 export function todayIso(): string {
-  const d = new Date()
+  return isoFromDate(new Date())
+}
+
+function isoFromDate(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/** Подпись даты в журнале: сегодняшняя — словом «Сегодня», вчерашняя — «Вчера». */
+export function formatDateLabel(date: string): string {
+  if (!date) return ''
+  if (date === todayIso()) return 'Сегодня'
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (date === isoFromDate(yesterday)) return 'Вчера'
+  return date
 }

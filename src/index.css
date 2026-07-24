@@ -286,3 +286,9 @@ body {
 .refs__name-input:hover, .refs__name-input:focus { border-color: var(--border); background: #fff; outline: none; }
 .refs__hint { margin: 0 0 10px; font-size: 12px; color: var(--muted); max-width: 380px; }
 .refs__table select { padding: 3px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; }
+
+/* Сегодняшняя дата в журнале — выделяем */
+.journal__today { font-weight: 600; color: var(--accent); }
+.field__row { display: flex; gap: 6px; align-items: center; }
+.field__row select, .field__row input { flex: 1; padding: 7px 8px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 14px; color: var(--text); }

@@ -5,12 +5,14 @@ import { hydrate } from '../../store/dataSlice'
 import { exportJson, importJson } from '../../data/json'
 import { exportXlsx, importXlsx } from '../../data/xlsx'
 import { buildFixtureSnapshot, buildEmptySnapshot } from '../../data/fixtures'
+import ImportWizard from '../import/ImportWizard'
 
 export default function DataMenu() {
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
   const fileRef = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState('')
+  const [wizardBuf, setWizardBuf] = useState<ArrayBuffer | null>(null)
 
   function download(bytes: BlobPart, name: string, mime: string) {
     const url = URL.createObjectURL(new Blob([bytes], { type: mime }))
@@ -36,11 +38,20 @@ export default function DataMenu() {
 
   async function doImport(file: File) {
     try {
-      const snapshot = file.name.toLowerCase().endsWith('.xlsx')
-        ? importXlsx(await file.arrayBuffer())
-        : importJson(await file.text())
-      dispatch(hydrate(snapshot))
-      setMsg('Импортировано ✓')
+      if (file.name.toLowerCase().endsWith('.xlsx')) {
+        const buf = await file.arrayBuffer()
+        try {
+          // свой файл (со скрытым листом «Данные») — грузим напрямую
+          dispatch(hydrate(importXlsx(buf)))
+          setMsg('Импортировано ✓')
+        } catch {
+          // произвольный Excel — открываем мастер сопоставления
+          setWizardBuf(buf)
+        }
+      } else {
+        dispatch(hydrate(importJson(await file.text())))
+        setMsg('Импортировано ✓')
+      }
     } catch (e) {
       setMsg('Ошибка импорта: ' + (e instanceof Error ? e.message : String(e)))
     }
@@ -51,7 +62,7 @@ export default function DataMenu() {
     <div className="datamenu">
       <button className="btn btn--small" onClick={doExportXlsx}>Экспорт Excel</button>
       <button className="btn btn--small" onClick={doExportJson}>Экспорт JSON</button>
-      <button className="btn btn--small" onClick={() => fileRef.current?.click()}>Импорт файла</button>
+      <button className="btn btn--small" onClick={() => fileRef.current?.click()}>Импорт (JSON/Excel)</button>
       <button
         className="btn btn--small"
         onClick={() => {
@@ -84,6 +95,7 @@ export default function DataMenu() {
           e.target.value = ''
         }}
       />
+      {wizardBuf && <ImportWizard buf={wizardBuf} onClose={() => setWizardBuf(null)} />}
     </div>
   )
 }

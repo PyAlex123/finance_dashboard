@@ -355,3 +355,39 @@ export function parseDdsJournal(grid: Grid, mapping: DdsMapping, opts: { default
 
   return { accounts, categories, operations, operationLines, openingBalances }
 }
+
+/** Стандартное дерево статей ДДС под импортированные счета/категории (чтобы отчёт считался). */
+export function generateDdsTemplate(accounts: Account[], categories: Category[]): Item[] {
+  const items: Item[] = []
+  let order = 0
+  const mk = (o: Omit<Item, 'id' | 'templateId' | 'form' | 'order'>) => {
+    items.push({ id: nanoid(), templateId: 'tpl-dds', form: 'cf', order: order++, ...o })
+  }
+
+  mk({ code: 's_totals', parentCode: null, kind: 'header', name: 'Итоги за период' })
+  mk({ code: 'v_total_in', parentCode: 's_totals', kind: 'agg', name: 'Общий приход', aggRule: { measure: 'in' } })
+  mk({ code: 'v_total_out', parentCode: 's_totals', kind: 'agg', name: 'Общий расход', aggRule: { measure: 'out' } })
+  mk({ code: 'v_result', parentCode: 's_totals', kind: 'calc', name: 'Результат (приход − расход)', formulaDefault: 'v_total_in - v_total_out' })
+
+  const inc = categories.filter((c) => c.direction === 'in')
+  if (inc.length) {
+    mk({ code: 's_income', parentCode: null, kind: 'header', name: 'Доходы по категориям' })
+    for (const c of inc) mk({ code: `inc_${c.code}`, parentCode: 'inc_total', kind: 'agg', name: c.name, aggRule: { measure: 'in', categoryCode: c.code } })
+    mk({ code: 'inc_total', parentCode: 's_income', kind: 'calc', name: 'ИТОГО доходы', formulaDefault: 'SUM(children)' })
+  }
+
+  const exp = categories.filter((c) => c.direction === 'out')
+  if (exp.length) {
+    mk({ code: 's_expense', parentCode: null, kind: 'header', name: 'Расходы по категориям' })
+    for (const c of exp) mk({ code: `exp_${c.code}`, parentCode: 'exp_total', kind: 'agg', name: c.name, aggRule: { measure: 'out', categoryCode: c.code } })
+    mk({ code: 'exp_total', parentCode: 's_expense', kind: 'calc', name: 'ИТОГО расходы', formulaDefault: 'SUM(children)' })
+  }
+
+  if (accounts.length) {
+    mk({ code: 's_balances', parentCode: null, kind: 'header', name: 'Остатки по счетам' })
+    for (const a of accounts) mk({ code: `bal_${a.code}`, parentCode: 'bal_total', kind: 'agg', name: a.name, aggRule: { measure: 'balance', accountCode: a.code } })
+    mk({ code: 'bal_total', parentCode: 's_balances', kind: 'calc', name: 'ИТОГО по всем счетам', formulaDefault: 'SUM(children)' })
+  }
+
+  return items
+}

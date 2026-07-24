@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectData } from '../../store/selectors'
 import { clearForm, setCellValue, seedItems } from '../../store/dataSlice'
 import { buildPlExample } from '../../data/plExample'
 import PlReport from './PlReport'
 import TemplateEditor from '../template/TemplateEditor'
+import ImportWizard from '../import/ImportWizard'
 import type { AppProps } from '../../App'
 
 type Tab = 'report' | 'template'
@@ -18,6 +19,8 @@ export default function PlApp({ username, onBack, onLogout }: AppProps = {}) {
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
   const [tab, setTab] = useState<Tab>('report')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [wizardBuf, setWizardBuf] = useState<ArrayBuffer | null>(null)
   const hasPl = data.items.some((i) => i.form === 'pl')
 
   function loadExample() {
@@ -41,6 +44,7 @@ export default function PlApp({ username, onBack, onLogout }: AppProps = {}) {
         </div>
         <div className="app__headright">
           <div className="datamenu">
+            <button className="btn btn--small" onClick={() => fileRef.current?.click()}>Импорт из Excel…</button>
             <button className="btn btn--small" onClick={loadExample}>Загрузить пример</button>
             {hasPl && (
               <button
@@ -68,6 +72,19 @@ export default function PlApp({ username, onBack, onLogout }: AppProps = {}) {
         {tab === 'report' && <PlReport />}
         {tab === 'template' && <TemplateEditor form="pl" />}
       </main>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        style={{ display: 'none' }}
+        onChange={async (e) => {
+          const f = e.target.files?.[0]
+          if (f) setWizardBuf(await f.arrayBuffer())
+          e.target.value = ''
+        }}
+      />
+      {wizardBuf && <ImportWizard buf={wizardBuf} onClose={() => setWizardBuf(null)} />}
     </div>
   )
 }

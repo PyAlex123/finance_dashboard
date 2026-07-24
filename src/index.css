@@ -250,3 +250,17 @@ body {
 .pl__delcol:hover { color: #dc2626; }
 .pl__addcol { border: none !important; background: none !important; }
 .empty-state__actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; justify-content: center; }
+
+/* --- Мастер импорта --- */
+.modal--wide { width: 860px; max-width: 96vw; }
+.imp__controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+.imp__controls .field { min-width: 120px; }
+.imp__summary { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.imp__preview { max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+.imp__grid { border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.imp__grid td { border: 1px solid #eef2f7; padding: 3px 7px; }
+.imp__roles td { background: #f1f5f9; padding: 2px; }
+.imp__roles select { font-size: 11px; padding: 2px 4px; border: 1px solid var(--border); border-radius: 4px; }
+.imp__hdr td { background: #eef2ff; font-weight: 600; }
+.imp__period { background: #dbeafe !important; }
+.imp__label { background: #f8fafc; font-weight: 500; }

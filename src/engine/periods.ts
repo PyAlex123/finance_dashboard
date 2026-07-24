@@ -62,3 +62,56 @@ export function formatPeriod(key: PeriodKey, opts: { withYear?: boolean } = {}):
   const name = MONTHS_RU[m - 1]
   return opts.withYear ? `${name} ${y}` : name
 }
+
+// Основы названий месяцев (рус. + короткие англ.) → номер месяца. Порядок важен.
+const MONTH_STEMS: [string, number][] = [
+  ['январ', 1], ['янв', 1], ['jan', 1],
+  ['феврал', 2], ['фев', 2], ['feb', 2],
+  ['март', 3], ['мар', 3], ['mar', 3],
+  ['апрел', 4], ['апр', 4], ['apr', 4],
+  ['май', 5], ['мая', 5], ['may', 5],
+  ['июнь', 6], ['июня', 6], ['июн', 6], ['jun', 6],
+  ['июль', 7], ['июля', 7], ['июл', 7], ['jul', 7],
+  ['август', 8], ['авг', 8], ['aug', 8],
+  ['сентябр', 9], ['сент', 9], ['сен', 9], ['sep', 9],
+  ['октябр', 10], ['окт', 10], ['oct', 10],
+  ['ноябр', 11], ['ноя', 11], ['nov', 11],
+  ['декабр', 12], ['дек', 12], ['dec', 12],
+]
+
+/**
+ * Разбор метки-периода из чужого Excel в ключ YYYY-MM.
+ * Понимает: "2025-01", "01.2025", "01/2025", "2025-01-31", "31.01.2025",
+ * "Январь", "янв", "Январь 2025", англ. месяцы. Год берётся из метки,
+ * иначе — defaultYear. Возвращает null, если период не распознан.
+ */
+export function parsePeriodLabel(label: string, defaultYear: number): PeriodKey | null {
+  const raw = String(label).trim()
+  if (raw === '') return null
+
+  const mk = (y: number, m: number): PeriodKey | null =>
+    m >= 1 && m <= 12 ? `${y}-${String(m).padStart(2, '0')}` : null
+
+  // YYYY-MM или YYYY-MM-DD
+  let m = raw.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/)
+  if (m) return mk(Number(m[1]), Number(m[2]))
+
+  // DD.MM.YYYY или DD/MM/YYYY (день отбрасываем)
+  m = raw.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/)
+  if (m) return mk(Number(m[3]), Number(m[2]))
+
+  // MM.YYYY или MM/YYYY
+  m = raw.match(/^(\d{1,2})[./](\d{4})$/)
+  if (m) return mk(Number(m[2]), Number(m[1]))
+
+  // Название месяца (+ возможный год в строке)
+  const lower = raw.toLowerCase()
+  const stem = MONTH_STEMS.find(([s]) => lower.includes(s))
+  if (stem) {
+    const yearMatch = raw.match(/\b(19|20)\d{2}\b/)
+    const year = yearMatch ? Number(yearMatch[0]) : defaultYear
+    return mk(year, stem[1])
+  }
+
+  return null
+}

@@ -17,10 +17,11 @@ export interface JournalRow {
   type: OperationType
   typeLabel: string
   description: string
+  categoryId: string | null
   categoryName: string
   note: string
   /** Сумма по каждому счёту: ключ = accountId. */
-  [accountId: string]: Money | string | number | OperationType
+  [accountId: string]: Money | string | number | OperationType | null
 }
 
 export const TYPE_LABEL: Record<OperationType, string> = {
@@ -55,6 +56,7 @@ export function buildJournalRows(
       type: op.type,
       typeLabel: TYPE_LABEL[op.type],
       description: op.description,
+      categoryId: op.categoryId,
       categoryName: op.categoryId ? catById.get(op.categoryId)?.name ?? '' : '',
       note: op.note ?? '',
     }

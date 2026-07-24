@@ -264,3 +264,13 @@ body {
 .imp__hdr td { background: #eef2ff; font-weight: 600; }
 .imp__period { background: #dbeafe !important; }
 .imp__label { background: #f8fafc; font-weight: 500; }
+
+/* --- Inline-редакторы ячеек журнала --- */
+.cell-editor { width: 100%; height: 100%; border: none; outline: none; padding: 0 8px; font-size: 13px;
+  font-family: inherit; background: #fff; }
+.cell-editor--num { text-align: right; font-variant-numeric: tabular-nums; }
+.cell-editor--wide { display: flex; align-items: center; width: 100%; height: 100%; }
+.cell-editor--wide input { width: 100%; border: none; outline: none; padding: 0 8px; font-size: 13px; }
+.toolbar__inline { display: flex; gap: 6px; align-items: center; }
+.toolbar__inline input, .toolbar__inline select { padding: 6px 8px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 13px; }

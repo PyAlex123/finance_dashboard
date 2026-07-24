@@ -93,14 +93,16 @@ export default function RefsView() {
                   />
                 </td>
                 <td>
-                  <select
-                    aria-label={`Дублировать ${a.name}`}
-                    value=""
-                    onChange={(e) => { if (e.target.value) duplicateInCurrency(a, e.target.value as Currency) }}
-                  >
-                    <option value="">— выбрать —</option>
-                    {CURRENCIES.filter((c) => c !== a.currency).map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  {CURRENCIES.filter((c) => c !== a.currency).map((c) => (
+                    <button
+                      key={c}
+                      className="btn btn--small"
+                      title={`Создать такой же счёт в ${c}`}
+                      onClick={() => duplicateInCurrency(a, c)}
+                    >
+                      + {c}
+                    </button>
+                  ))}
                 </td>
                 <td><button className="btn btn--small btn--danger" onClick={() => dispatch(deleteAccount(a.id))}>✕</button></td>
               </tr>

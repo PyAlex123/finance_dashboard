@@ -75,9 +75,10 @@ describe('Справочники: автокоды (задание 4)', () => {
 })
 
 describe('Справочники: валюты (задание 3)', () => {
-  it('дубль счёта в другой валюте создаёт новый счёт', () => {
+  it('кнопка «+ USD» создаёт такой же счёт в долларах', () => {
     const store = renderRefs()
-    fireEvent.change(screen.getByLabelText('Дублировать Наличные'), { target: { value: 'USD' } })
+    // у каждого сумового счёта есть кнопка «+ USD»; берём второй — «Наличные»
+    fireEvent.click(screen.getAllByTitle('Создать такой же счёт в USD')[1])
 
     const dup = store.getState().data.accounts.find((a) => a.name === 'Наличные (USD)')!
     expect(dup).toBeDefined()

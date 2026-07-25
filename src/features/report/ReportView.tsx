@@ -7,9 +7,12 @@ import { formatPeriod } from '../../engine/periods'
 import { formatMoney, type Money } from '../../domain/money'
 import ChecksPanel from './ChecksPanel'
 
+// Отрицательные суммы — в скобках (терракота), как в эталоне: (1 300 000).
 function cell(v: Money | null): { text: string; neg: boolean } {
   if (v === null) return { text: '', neg: false }
-  return { text: v === 0n ? '—' : formatMoney(v), neg: v < 0n }
+  if (v === 0n) return { text: '—', neg: false }
+  if (v < 0n) return { text: `(${formatMoney(-v)})`, neg: true }
+  return { text: formatMoney(v), neg: false }
 }
 
 function FormulaEditor({ code, onClose }: { code: string; onClose: () => void }) {
@@ -69,7 +72,12 @@ export default function ReportView() {
 
   return (
     <div className="report-layout">
-      <div className="report">
+      <div className="report-main">
+        <div className="report__header">
+          <div className="report__eyebrow">Сводный отчёт</div>
+          <h2 className="report__heading">Итоги за период · по категориям · остатки</h2>
+        </div>
+        <div className="report">
         {report.error && <div className="report__error">Ошибка расчёта: {report.error}</div>}
         <table className="report__table">
           <thead>
@@ -93,6 +101,18 @@ export default function ReportView() {
             ))}
           </tbody>
         </table>
+        </div>
+        <div className="report__callout">
+          <span className="report__callout-mark">!</span>
+          <div className="report__callout-text">
+            <b>Ключевая идея.</b> Прибыль ≠ деньги на счёте. Результат периода не равен изменению
+            остатка — на остаток влияют переброски, кредиторка и предоплаты.
+          </div>
+        </div>
+        <p className="report__note">
+          Клик по сумме открывает операции, из которых она сложилась. Переброски между счетами
+          не меняют итоговый остаток.
+        </p>
       </div>
       <ChecksPanel />
     </div>

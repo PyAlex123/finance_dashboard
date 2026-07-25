@@ -269,21 +269,40 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 .welcome__hint { margin: 22px 0 0; font-size: 12.5px; color: var(--muted); }
 
 /* --- Экран выбора модуля --- */
-.chooser { min-height: 100vh; padding: 40px 24px; max-width: 900px; margin: 0 auto; }
-.chooser__top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; gap: 16px; }
-.chooser__hello { color: var(--muted); font-size: 14px; }
-.chooser__title { margin: 4px 0 0; font-size: 26px; }
-.chooser__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-.modcard { position: relative; text-align: left; background: var(--panel); border: 1px solid var(--border);
-  border-radius: 14px; padding: 24px; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
-.modcard:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 14px 36px rgba(15,23,42,.12); border-color: var(--accent); }
-.modcard--soon { opacity: .65; cursor: not-allowed; }
-.modcard__badge { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 600;
-  color: #92400e; background: #fef3c7; border-radius: 999px; padding: 3px 10px; }
-.modcard__icon { font-size: 34px; }
-.modcard__title { font-size: 18px; font-weight: 600; }
-.modcard__desc { font-size: 13px; color: var(--muted); }
+.chooser { min-height: 100vh; padding: 56px 32px; max-width: 1080px; margin: 0 auto; background: var(--bg); }
+.chooser__top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 36px; gap: 16px; }
+.chooser__hello { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 12px; }
+.chooser__title { margin: 0; font: 800 34px/1.05 'Manrope', sans-serif; letter-spacing: -.035em; color: var(--forest); }
+.chooser__who { display: flex; align-items: center; gap: 10px; }
+.chooser__avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--mint); display: flex;
+  align-items: center; justify-content: center; font: 700 13px 'Manrope', sans-serif; color: var(--forest); flex-shrink: 0; }
+.chooser__name { font: 600 14px 'Manrope', sans-serif; color: var(--forest); }
+.chooser__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.modcard { position: relative; text-align: left; background: rgba(255, 255, 255, .9); border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px; cursor: pointer; display: flex; flex-direction: column;
+  transition: border-color .15s, box-shadow .15s; }
+.modcard:not(:disabled):hover { border-color: var(--accent); box-shadow: 0 20px 40px -30px rgba(11, 59, 50, .5); }
+.modcard--soon { opacity: .6; cursor: default; }
+.modcard__head { display: flex; justify-content: space-between; align-items: flex-start; }
+.modcard__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+.modcard__badge { font: 600 10.5px 'Manrope', sans-serif; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); background: var(--slate-soft); border-radius: 6px; padding: 3px 8px; }
+.modcard__title { font: 800 22px 'Manrope', sans-serif; letter-spacing: -.03em; color: var(--forest); margin: 14px 0 4px; }
+.modcard__desc { font-size: 14px; line-height: 1.5; color: var(--muted); }
+.modcard__stat { margin-top: 22px; font: 800 24px 'Manrope', sans-serif; letter-spacing: -.04em; color: var(--text);
+  font-variant-numeric: tabular-nums; }
+.modcard__stat-label { font: 600 12px 'Manrope', sans-serif; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+.chooser__ds { margin-top: 28px; text-align: center; }
+.chooser__ds a { font: 600 12px 'Manrope', sans-serif; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.chooser__ds a:hover { color: var(--accent); }
+
+/* --- Дизайн-система (плейсхолдер; полное наполнение — этап UI-10) --- */
+.ds { min-height: 100vh; background: var(--bg); padding: 48px 32px 80px; }
+.ds__top { max-width: 1080px; margin: 0 auto 36px; display: flex; justify-content: space-between; align-items: center; }
+.ds__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 12px; }
+.ds__title { margin: 0; font: 800 32px 'Manrope', sans-serif; letter-spacing: -.035em; color: var(--forest); }
 
 /* --- Пустые состояния --- */
 .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;

@@ -30,7 +30,7 @@ describe('Shell — поток экранов', () => {
     renderShell()
     fireEvent.change(screen.getByLabelText('Юзернейм'), { target: { value: 'Алекс' } })
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
-    expect(screen.getByText('Выберите отчёт')).toBeInTheDocument()
+    expect(screen.getByText('Выберите модуль')).toBeInTheDocument()
     expect(screen.getByText(/Здравствуйте, Алекс/)).toBeInTheDocument()
   })
 
@@ -50,7 +50,7 @@ describe('Shell — поток экранов', () => {
     fireEvent.click(screen.getByRole('button', { name: /ДДС/ }))
     expect(screen.getByText('ДДС — движение денежных средств')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '← Модули' }))
-    expect(screen.getByText('Выберите отчёт')).toBeInTheDocument()
+    expect(screen.getByText('Выберите модуль')).toBeInTheDocument()
   })
 
   it('«Выйти» возвращает на экран входа', () => {

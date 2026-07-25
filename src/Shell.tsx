@@ -3,6 +3,7 @@ import { getUsername, setUsername as persistUsername, clearUsername } from './fe
 import { connectBackend, disconnectBackend } from './data/backend'
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
+import DesignSystemView from './features/designsystem/DesignSystemView'
 import App from './App'
 import PlApp from './features/pnl/PlApp'
 
@@ -11,6 +12,7 @@ import PlApp from './features/pnl/PlApp'
 export default function Shell() {
   const [username, setUser] = useState<string | null>(() => getUsername())
   const [module, setModule] = useState<ModuleId | null>(null)
+  const [designSystem, setDesignSystem] = useState(false)
 
   // Серверный режим: подключить пространство запомненного пользователя при старте.
   // Локальный режим — no-op (данные уже загружены в main.tsx).
@@ -30,10 +32,21 @@ export default function Shell() {
     clearUsername()
     setUser(null)
     setModule(null)
+    setDesignSystem(false)
   }
 
   if (!username) return <LoginScreen onLogin={login} />
-  if (!module) return <ModuleChooser username={username} onPick={setModule} onLogout={logout} />
+  if (designSystem) return <DesignSystemView onBack={() => setDesignSystem(false)} />
+  if (!module) {
+    return (
+      <ModuleChooser
+        username={username}
+        onPick={setModule}
+        onLogout={logout}
+        onOpenDesignSystem={() => setDesignSystem(true)}
+      />
+    )
+  }
 
   const workspaceProps = { username, onBack: () => setModule(null), onLogout: logout }
   if (module === 'pl') return <PlApp {...workspaceProps} />

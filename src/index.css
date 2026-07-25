@@ -656,6 +656,10 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   /* Справочники: секции на всю ширину */
   .refs__section { min-width: 0; width: 100%; }
 
+  /* Меню «Данные»: на телефоне кнопка слева — раскрываем вправо, чтобы не
+     уезжало за левый край экрана */
+  .datamenu__panel { right: auto; left: 0; }
+
   /* Журнал: панель действий в столбик, «Сегодня» на всю ширину, фильтр скроллом */
   .panel { max-width: 390px; margin: 0 auto; }
   .actionbar { flex-direction: column; align-items: stretch; gap: 10px; }

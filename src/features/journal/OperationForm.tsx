@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { nanoid } from '@reduxjs/toolkit'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectActiveAccounts, selectCategories, selectData } from '../../store/selectors'
@@ -10,11 +10,18 @@ import { autoCode } from '../../domain/codes'
 import { directionForType, todayIso } from './rowEdit'
 import type { OperationType } from '../../domain/types'
 
-const TYPE_OPTIONS: { value: OperationType; label: string }[] = [
-  { value: 'income', label: '🟢 Приход' },
-  { value: 'expense', label: '🔴 Расход' },
-  { value: 'transfer', label: '🔵 Переброска' },
+// Сегментный контрол типа — семантические цвета из эталона.
+const TYPE_SEGMENTS: { value: OperationType; label: string }[] = [
+  { value: 'income', label: '● Приход' },
+  { value: 'expense', label: '● Расход' },
+  { value: 'transfer', label: '⇄ Переброска' },
 ]
+
+const SEG_CLASS: Record<OperationType, string> = {
+  income: 'segtype__btn--in',
+  expense: 'segtype__btn--out',
+  transfer: 'segtype__btn--tr',
+}
 
 export default function OperationForm({
   onClose, operationId,
@@ -74,39 +81,41 @@ export default function OperationForm({
     setNewCategory(null)
   }
 
-  function submit() {
-    setError('')
+  /** Собрать вход операции из полей формы (или строку ошибки). */
+  function buildInput(): OperationInput | string {
     let minor: bigint
     try {
       minor = parseMoney(amount)
     } catch {
-      setError('Некорректная сумма')
-      return
+      return 'Некорректная сумма'
     }
-    if (minor <= 0n) return setError('Сумма должна быть больше нуля')
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return setError('Некорректная дата')
-    if (!accountId) return setError('Выберите счёт')
+    if (minor <= 0n) return 'Сумма должна быть больше нуля'
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Некорректная дата'
+    if (!accountId) return 'Выберите счёт'
 
-    let input: OperationInput
     if (type === 'transfer') {
-      if (!toAccountId || toAccountId === accountId) return setError('Счета переброски должны различаться')
+      if (!toAccountId || toAccountId === accountId) return 'Счета переброски должны различаться'
       const toCurrency = accounts.find((a) => a.id === toAccountId)?.currency ?? 'UZS'
-      input = {
+      return {
         operation: { date, type, description: description || 'Переброска', categoryId: effectiveCategoryId, note },
         lines: [
           { accountId, amount: -minor, currency },
           { accountId: toAccountId, amount: minor, currency: toCurrency },
         ],
       }
-    } else {
-      const signed = type === 'expense' ? -minor : minor
-      input = {
-        operation: { date, type, description, categoryId: effectiveCategoryId, note },
-        lines: [{ accountId, amount: signed, currency }],
-      }
     }
+    const signed = type === 'expense' ? -minor : minor
+    return {
+      operation: { date, type, description, categoryId: effectiveCategoryId, note },
+      lines: [{ accountId, amount: signed, currency }],
+    }
+  }
+
+  function submit() {
+    setError('')
+    const input = buildInput()
+    if (typeof input === 'string') return setError(input)
     if (editing) {
-      // правка: сохраняем id операции, проводки пересобираем заново
       dispatch(updateOperation({
         operation: { ...input.operation, id: editing.id },
         lines: input.lines.map((l, i) => ({ ...l, id: `${editing.id}-l${i + 1}`, operationId: editing.id })),
@@ -117,10 +126,34 @@ export default function OperationForm({
     onClose()
   }
 
+  /** Добавить и оставить форму открытой для следующей записи. */
+  function submitMore() {
+    setError('')
+    const input = buildInput()
+    if (typeof input === 'string') return setError(input)
+    dispatch(addOperation(input))
+    setAmount('')
+    setDescription('')
+    setNote('')
+  }
+
+  // Esc — закрыть, Ctrl/Cmd+Enter — сохранить.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submit()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal__title">{editing ? 'Изменить операцию' : 'Новая операция'}</h3>
+        <div className="modal__head">
+          <h3 className="modal__title">{editing ? 'Изменить операцию' : 'Новая операция'}</h3>
+          <button className="modal__close" onClick={onClose} title="Закрыть">✕</button>
+        </div>
 
         {accounts.length === 0 && (
           <div className="modal__error">
@@ -128,20 +161,34 @@ export default function OperationForm({
           </div>
         )}
 
+        <div className="segtype">
+          {TYPE_SEGMENTS.map((t) => (
+            <button
+              key={t.value}
+              className={`segtype__btn ${type === t.value ? `segtype__btn--active ${SEG_CLASS[t.value]}` : ''}`}
+              onClick={() => setType(t.value)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         <div className="form-grid">
-          <label className="field">
-            <span>Тип</span>
-            <select value={type} onChange={(e) => setType(e.target.value as OperationType)}>
-              {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+          <label className="field field--wide">
+            <span>Описание</span>
+            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Оплата курса…" />
           </label>
           <label className="field">
             <span>Дата</span>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
-          <label className="field field--wide">
-            <span>Описание</span>
-            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Оплата курса…" />
+
+          <label className="field">
+            <span>Сумма</span>
+            <div className="mamount">
+              <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="650000" />
+              <span className="mamount__cur">{currency === 'UZS' ? 'сум' : currency}</span>
+            </div>
           </label>
 
           {type !== 'transfer' && (
@@ -157,7 +204,7 @@ export default function OperationForm({
                     {catsForType.length === 0 && <option value="">— нет категорий —</option>}
                     {catsForType.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                  <button type="button" className="btn btn--small" onClick={() => setNewCategory('')}>
+                  <button type="button" className="btn btn--cat" onClick={() => setNewCategory('')}>
                     ＋ Новая
                   </button>
                 </div>
@@ -181,7 +228,7 @@ export default function OperationForm({
             </div>
           )}
 
-          <label className="field">
+          <label className="field field--wide">
             <span>{type === 'transfer' ? 'Со счёта' : 'Счёт'}</span>
             <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
               {accounts.map((a) => (
@@ -193,7 +240,7 @@ export default function OperationForm({
           </label>
 
           {type === 'transfer' && (
-            <label className="field">
+            <label className="field field--wide">
               <span>На счёт</span>
               <select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>
                 {accounts.map((a) => (
@@ -205,23 +252,26 @@ export default function OperationForm({
             </label>
           )}
 
-          <label className="field">
-            <span>Сумма ({currency === 'UZS' ? 'сум' : currency})</span>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="650000" />
-          </label>
           <label className="field field--wide">
             <span>Примечание</span>
-            <input value={note} onChange={(e) => setNote(e.target.value)} />
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Необязательно" />
           </label>
         </div>
 
         {error && <div className="modal__error">{error}</div>}
 
-        <div className="modal__actions">
-          <button className="btn btn--primary" onClick={submit} disabled={accounts.length === 0}>
-            {editing ? 'Сохранить' : 'Добавить'}
-          </button>
-          <button className="btn" onClick={onClose}>Отмена</button>
+        <div className="modal__foot">
+          <div className="modal__actions">
+            <button className="btn btn--primary" onClick={submit} disabled={accounts.length === 0}>
+              {editing ? 'Сохранить' : 'Добавить'}
+            </button>
+            {!editing && (
+              <button className="btn" onClick={submitMore} disabled={accounts.length === 0}>
+                Добавить и создать ещё
+              </button>
+            )}
+          </div>
+          <span className="modal__hint">Esc — закрыть · Ctrl+Enter — сохранить</span>
         </div>
       </div>
     </div>

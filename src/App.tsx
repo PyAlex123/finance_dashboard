@@ -7,6 +7,8 @@ import DashboardView from './features/dashboard/DashboardView'
 import RefsView from './features/refs/RefsView'
 import TemplateEditor from './features/template/TemplateEditor'
 import DataMenu from './features/data/DataMenu'
+import { REMOTE } from './data/backend'
+import { useConnectivity } from './data/connectivity'
 
 type Tab = 'journal' | 'report' | 'dashboard' | 'template' | 'refs'
 
@@ -29,6 +31,7 @@ export default function App({ username, onBack, onLogout }: AppProps = {}) {
   const [tab, setTab] = useState<Tab>('journal')
   const [dataMenuOpen, setDataMenuOpen] = useState(false)
   const dispatch = useAppDispatch()
+  const online = useConnectivity() === 'online'
 
   // При открытии ДДС создаём недостающие счета по умолчанию (Р/С, Наличные, Карта).
   // Работает и когда часть счетов уже заведена пользователем.
@@ -52,6 +55,11 @@ export default function App({ username, onBack, onLogout }: AppProps = {}) {
             </div>
           </div>
           <div className="app__headright">
+            {REMOTE && !online && (
+              <span className="offline-pill" title="Сервер недоступен — данные сохраняются локально">
+                ● офлайн
+              </span>
+            )}
             <DataMenu
               open={dataMenuOpen}
               onToggle={() => setDataMenuOpen((v) => !v)}

@@ -8,7 +8,7 @@ import type { Repository } from './repository'
 
 const DB_NAME = 'fin-reports'
 const STORE = 'kv'
-const KEY = 'snapshot'
+const DEFAULT_KEY = 'snapshot'
 
 async function db(): Promise<IDBPDatabase> {
   return openDB(DB_NAME, 1, {
@@ -18,20 +18,24 @@ async function db(): Promise<IDBPDatabase> {
   })
 }
 
-export function createIdbRepo(): Repository {
+/**
+ * Хранилище IndexedDB. key разделяет данные: в серверном режиме используется как
+ * локальный бэкап на рабочее пространство (напр. `snapshot:Алекс`).
+ */
+export function createIdbRepo(key: string = DEFAULT_KEY): Repository {
   return {
     async load() {
       const d = await db()
-      const snapshot = (await d.get(STORE, KEY)) as DataSnapshot | undefined
+      const snapshot = (await d.get(STORE, key)) as DataSnapshot | undefined
       return snapshot ?? null
     },
     async save(snapshot) {
       const d = await db()
-      await d.put(STORE, snapshot, KEY)
+      await d.put(STORE, snapshot, key)
     },
     async clear() {
       const d = await db()
-      await d.delete(STORE, KEY)
+      await d.delete(STORE, key)
     },
   }
 }

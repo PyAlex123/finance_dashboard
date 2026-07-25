@@ -1,16 +1,24 @@
 // Полоса остатков (реальные данные) и сегментный фильтр типов в журнале.
 
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { makeStore } from '../../store'
 import { hydrate } from '../../store/dataSlice'
 import { buildFixtureSnapshot } from '../../data/fixtures'
 import { selectAccountBalances, selectTotalBalance } from '../../store/reportSelectors'
-import { ViewModeProvider } from '../shell/ViewMode'
 import JournalPanel from './JournalPanel'
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+/** Заставить useViewMode() вернуть мобильный режим (узкий экран). */
+function forceMobile() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: true, media: query, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  }))
+}
 
 function storeWithFixture() {
   const store = makeStore()
@@ -33,12 +41,11 @@ describe('полоса остатков — реальные данные', () =
 
 describe('фильтр типов в журнале', () => {
   it('переключение на «Расход» оставляет только расходные операции (счётчик уменьшается)', () => {
+    forceMobile() // мобильный вид: карточки вместо AG Grid — надёжно для jsdom
     const store = storeWithFixture()
     render(
       <Provider store={store}>
-        <ViewModeProvider value="mobile">
-          <JournalPanel />
-        </ViewModeProvider>
+        <JournalPanel />
       </Provider>,
     )
 

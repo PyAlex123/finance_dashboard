@@ -103,13 +103,6 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   color: var(--muted);
 }
 
-.viewswitch { display: flex; background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.viewswitch__btn {
-  border: none; background: none; font: 600 12px 'Manrope', sans-serif; letter-spacing: .04em;
-  padding: 8px 12px; color: var(--muted); cursor: pointer;
-}
-.viewswitch__btn--active { background: var(--forest); color: #fff; }
-
 .app__whoami { display: flex; align-items: center; gap: 9px; }
 .app__avatar {
   width: 32px; height: 32px; border-radius: 50%; background: var(--mint); display: flex;
@@ -623,3 +616,34 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   border-radius: 6px; font-size: 14px; color: var(--text); }
 .journal__actions { display: inline-flex; gap: 4px; align-items: center; }
 .journal__actions .btn { padding: 2px 7px; line-height: 1.4; }
+
+/* --- Адаптация под узкий экран (телефон). Порог 768px совпадает с useViewMode,
+   поэтому JS-переключение вёрстки (журнал/дашборд) и CSS-адаптация согласованы. --- */
+@media (max-width: 768px) {
+  .app__content { padding: 16px 14px 60px; }
+  .app__header { padding: 12px 14px; flex-wrap: wrap; gap: 10px; }
+  .app__headright { flex-wrap: wrap; }
+  .app__title { font-size: 17px; }
+  .tabs { padding: 0 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab { white-space: nowrap; }
+
+  /* Отчёт и шаблон: боковые панели уходят под основную область */
+  .report-layout { flex-direction: column; }
+  .checks { width: 100%; position: static; }
+  .tpl { flex-direction: column; }
+  .tpl__versions { width: 100%; }
+
+  /* Экран выбора модуля / дизайн-система */
+  .chooser { padding: 32px 18px; }
+  .chooser__top { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .ds { padding: 32px 18px 60px; }
+  .ds__swatches { grid-template-columns: repeat(2, 1fr); }
+  .ds__grid2 { grid-template-columns: 1fr; }
+
+  /* Модалка операции: поля в одну колонку */
+  .modal { padding: 20px 18px; }
+  .form-grid { grid-template-columns: 1fr; }
+
+  /* Справочники: секции на всю ширину */
+  .refs__section { min-width: 0; width: 100%; }
+}

@@ -7,7 +7,6 @@ import DashboardView from './features/dashboard/DashboardView'
 import RefsView from './features/refs/RefsView'
 import TemplateEditor from './features/template/TemplateEditor'
 import DataMenu from './features/data/DataMenu'
-import { ViewModeProvider, type ViewMode } from './features/shell/ViewMode'
 
 type Tab = 'journal' | 'report' | 'dashboard' | 'template' | 'refs'
 
@@ -28,7 +27,6 @@ export interface AppProps {
 // Рабочая область ДДС (вкладки). Оборачивается Shell (вход/выбор модуля).
 export default function App({ username, onBack, onLogout }: AppProps = {}) {
   const [tab, setTab] = useState<Tab>('journal')
-  const [view, setView] = useState<ViewMode>('desktop')
   const [dataMenuOpen, setDataMenuOpen] = useState(false)
   const dispatch = useAppDispatch()
 
@@ -39,72 +37,56 @@ export default function App({ username, onBack, onLogout }: AppProps = {}) {
   }, [dispatch])
 
   return (
-    <ViewModeProvider value={view}>
-      <div className="app">
-        <div className="topbar">
-          <header className="app__header">
-            <div className="app__headleft">
-              {onBack && (
-                <button className="btn btn--small app__back" onClick={onBack} title="К выбору отчёта">
-                  ← Модули
-                </button>
-              )}
-              <div>
-                <h1 className="app__title">ДДС — движение денежных средств</h1>
-                <p className="app__subtitle">Рабочая область</p>
-              </div>
-            </div>
-            <div className="app__headright">
-              <div className="viewswitch">
-                <button
-                  className={`viewswitch__btn ${view === 'desktop' ? 'viewswitch__btn--active' : ''}`}
-                  onClick={() => setView('desktop')}
-                >
-                  Десктоп
-                </button>
-                <button
-                  className={`viewswitch__btn ${view === 'mobile' ? 'viewswitch__btn--active' : ''}`}
-                  onClick={() => setView('mobile')}
-                >
-                  Моб.
-                </button>
-              </div>
-              <DataMenu
-                open={dataMenuOpen}
-                onToggle={() => setDataMenuOpen((v) => !v)}
-                onClose={() => setDataMenuOpen(false)}
-              />
-              {username && (
-                <div className="app__whoami">
-                  <span className="app__avatar">{username.charAt(0).toUpperCase()}</span>
-                  <span className="app__user">{username}</span>
-                </div>
-              )}
-              {onLogout && <button className="btn btn--small" onClick={onLogout}>Выйти</button>}
-            </div>
-          </header>
-
-          <nav className="tabs">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                className={`tab ${tab === t.id ? 'tab--active' : ''}`}
-                onClick={() => setTab(t.id)}
-              >
-                {t.label}
+    <div className="app">
+      <div className="topbar">
+        <header className="app__header">
+          <div className="app__headleft">
+            {onBack && (
+              <button className="btn btn--small app__back" onClick={onBack} title="К выбору отчёта">
+                ← Модули
               </button>
-            ))}
-          </nav>
-        </div>
+            )}
+            <div>
+              <h1 className="app__title">ДДС — движение денежных средств</h1>
+              <p className="app__subtitle">Рабочая область</p>
+            </div>
+          </div>
+          <div className="app__headright">
+            <DataMenu
+              open={dataMenuOpen}
+              onToggle={() => setDataMenuOpen((v) => !v)}
+              onClose={() => setDataMenuOpen(false)}
+            />
+            {username && (
+              <div className="app__whoami">
+                <span className="app__avatar">{username.charAt(0).toUpperCase()}</span>
+                <span className="app__user">{username}</span>
+              </div>
+            )}
+            {onLogout && <button className="btn btn--small" onClick={onLogout}>Выйти</button>}
+          </div>
+        </header>
 
-        <main className="app__content">
-          {tab === 'journal' && <JournalPanel />}
-          {tab === 'report' && <ReportView />}
-          {tab === 'dashboard' && <DashboardView />}
-          {tab === 'template' && <TemplateEditor />}
-          {tab === 'refs' && <RefsView />}
-        </main>
+        <nav className="tabs">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className={`tab ${tab === t.id ? 'tab--active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
       </div>
-    </ViewModeProvider>
+
+      <main className="app__content">
+        {tab === 'journal' && <JournalPanel />}
+        {tab === 'report' && <ReportView />}
+        {tab === 'dashboard' && <DashboardView />}
+        {tab === 'template' && <TemplateEditor />}
+        {tab === 'refs' && <RefsView />}
+      </main>
+    </div>
   )
 }

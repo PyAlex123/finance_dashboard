@@ -182,6 +182,8 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 .report__name { text-align: left; white-space: nowrap; font: 500 13.5px 'Golos Text', sans-serif; color: var(--text); }
 .report__num { text-align: right; font: 600 13px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text); }
 .report__num--neg { color: var(--expense); }
+.report__num--drill { cursor: pointer; }
+.report__num--drill:hover { background: #eaf4ef; box-shadow: inset 0 0 0 1px var(--mint); }
 .report__fx { margin-left: 8px; border: 1px solid var(--border); background: #fff; border-radius: 6px; font-size: 11px; padding: 0 6px; cursor: pointer; color: var(--accent); }
 .report__editor-row td { background: var(--bg); padding: 8px 14px; height: auto; }
 .report__callout { max-width: 760px; margin: 16px auto 0; background: var(--warn-soft); border: 1px solid #ecdcb4;
@@ -213,6 +215,29 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 .check__issues { margin: 6px 0 0; padding-left: 18px; }
 .check__issue { margin: 2px 0; }
 .check__diff { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* --- Drill-down панель (из чего сложилась сумма) --- */
+.drill-backdrop { position: fixed; inset: 0; z-index: 150; background: rgba(11, 59, 50, .28); display: flex; justify-content: flex-end; }
+.drill { width: min(440px, 92vw); height: 100%; background: #fff; box-shadow: -26px 0 50px -34px rgba(11, 59, 50, .55);
+  display: flex; flex-direction: column; animation: slidein .28s cubic-bezier(.2, .8, .2, 1); }
+.drill__head { padding: 22px 24px; border-bottom: 1px solid var(--border); }
+.drill__top { display: flex; justify-content: space-between; align-items: center; }
+.drill__eyebrow { font: 600 11px 'Manrope', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.drill__close { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: #fff; cursor: pointer; color: var(--muted); }
+.drill__close:hover { border-color: var(--accent); }
+.drill__title { font: 800 22px 'Manrope', sans-serif; letter-spacing: -.03em; color: var(--forest); margin-top: 10px; }
+.drill__total { font: 800 20px 'Manrope', sans-serif; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--accent); margin-top: 2px; }
+.drill__total--neg { color: var(--expense); }
+.drill__list { flex: 1; overflow: auto; padding: 10px 14px; }
+.drill__empty { color: var(--muted); font-size: 13px; padding: 20px 10px; text-align: center; }
+.drill__op { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 12px; border-radius: 10px; }
+.drill__op:hover { background: var(--bg); }
+.drill__op-main { min-width: 0; }
+.drill__op-desc { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drill__op-meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.drill__op-amount { flex: none; font: 700 14px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; color: var(--accent); }
+.drill__op-amount--neg { color: var(--expense); }
+.drill__foot { padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg); font-size: 12.5px; color: var(--muted); }
 
 /* --- Кнопки --- */
 .btn { padding: 8px 14px; border: 1px solid var(--border); background: #fff; color: var(--forest);

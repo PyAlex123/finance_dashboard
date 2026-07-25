@@ -142,3 +142,62 @@ function balanceAt(ctx: AggContext, accountCode: string | undefined, period: Per
 export function aggByPeriods(ctx: AggContext, rule: AggRule, periods: PeriodKey[]): Money[] {
   return periods.map((p) => aggValue(ctx, rule, p))
 }
+
+/** Одна операция, вошедшая в сумму агрегата (для drill-down отчёта). */
+export interface AggOperation {
+  operationId: string
+  date: IsoDate
+  description: string
+  /** Названия задействованных счетов через запятую. */
+  accounts: string
+  /** Вклад операции в сумму (в базовой валюте, знак как у показателя). */
+  amount: Money
+}
+
+/**
+ * Операции, из которых сложилась сумма агрегата за период — тот же фильтр, что в
+ * aggValue, но возвращает список (для панели «из чего сложилось»). Для measure
+ * 'balance' — все операции по счёту с периодом ≤ заданного.
+ */
+export function listAggOperations(
+  data: DataSnapshot,
+  rule: AggRule,
+  period: PeriodKey,
+): AggOperation[] {
+  const ctx = buildAggContext(data)
+  const accNameById = new Map(data.accounts.map((a) => [a.id, a.name]))
+  const descById = new Map(data.operations.map((o) => [o.id, o.description]))
+  const out: AggOperation[] = []
+
+  for (const [opId, meta] of ctx.opMeta) {
+    if (rule.measure === 'balance') {
+      if (comparePeriods(meta.period, period) > 0) continue
+    } else {
+      if (meta.type === 'transfer') continue
+      if (rule.measure === 'in' && meta.type !== 'income') continue
+      if (rule.measure === 'out' && meta.type !== 'expense') continue
+      if (meta.period !== period) continue
+      if (rule.categoryCode && meta.categoryCode !== rule.categoryCode) continue
+    }
+
+    let amount = 0n
+    const accs = new Set<string>()
+    for (const line of ctx.linesByOp.get(opId) ?? []) {
+      if (rule.accountCode && ctx.accCodeById.get(line.accountId) !== rule.accountCode) continue
+      amount += line.amount
+      accs.add(accNameById.get(line.accountId) ?? '')
+    }
+    if (amount === 0n) continue
+
+    out.push({
+      operationId: opId,
+      date: meta.date,
+      description: descById.get(opId) ?? '',
+      accounts: [...accs].join(', '),
+      amount: rule.measure === 'out' ? -amount : amount,
+    })
+  }
+
+  // новее — сверху
+  return out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+}

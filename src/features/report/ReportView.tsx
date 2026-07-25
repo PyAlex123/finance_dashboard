@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectReport, selectFormulaByCode } from '../../store/reportSelectors'
+import { selectData } from '../../store/selectors'
 import { setOverride, clearOverride } from '../../store/dataSlice'
 import { rowTotal, type ReportRow } from '../../engine/report'
 import { formatPeriod } from '../../engine/periods'
 import { formatMoney, type Money } from '../../domain/money'
+import { listAggOperations } from '../../engine/aggregate'
+import type { AggRule, PeriodKey } from '../../domain/types'
 import ChecksPanel from './ChecksPanel'
+import DrillDownPanel, { type DrillData } from './DrillDownPanel'
 
 // Отрицательные суммы — в скобках (терракота), как в эталоне: (1 300 000).
 function cell(v: Money | null): { text: string; neg: boolean } {
@@ -53,7 +57,31 @@ function FormulaEditor({ code, onClose }: { code: string; onClose: () => void })
 
 export default function ReportView() {
   const report = useAppSelector(selectReport)
+  const data = useAppSelector(selectData)
   const [editing, setEditing] = useState<string | null>(null)
+  const [drill, setDrill] = useState<DrillData | null>(null)
+
+  // Код статьи → правило агрегата (только agg-строки кликабельны для drill-down).
+  const aggRuleByCode = useMemo(
+    () => new Map<string, AggRule>(
+      data.items.filter((it) => it.kind === 'agg' && it.aggRule).map((it) => [it.code, it.aggRule!]),
+    ),
+    [data.items],
+  )
+
+  function openDrill(row: ReportRow, period: PeriodKey | 'total') {
+    const rule = aggRuleByCode.get(row.code)
+    if (!rule) return
+    const periods = period === 'total' ? report.periods : [period]
+    const ops = periods.flatMap((p) => listAggOperations(data, rule, p))
+    const total = ops.reduce((acc, o) => acc + o.amount, 0n)
+    setDrill({
+      title: row.name,
+      periodLabel: period === 'total' ? 'весь период' : formatPeriod(period),
+      total,
+      ops,
+    })
+  }
 
   if (report.rows.length === 0) {
     return (
@@ -94,6 +122,9 @@ export default function ReportView() {
               <RowView
                 key={row.code}
                 row={row}
+                periods={report.periods}
+                drillable={aggRuleByCode.has(row.code)}
+                onDrill={(period) => openDrill(row, period)}
                 editing={editing === row.code}
                 onEdit={() => setEditing(editing === row.code ? null : row.code)}
                 onClose={() => setEditing(null)}
@@ -115,13 +146,22 @@ export default function ReportView() {
         </p>
       </div>
       <ChecksPanel />
+      {drill && <DrillDownPanel drill={drill} onClose={() => setDrill(null)} />}
     </div>
   )
 }
 
 function RowView({
-  row, editing, onEdit, onClose,
-}: { row: ReportRow; editing: boolean; onEdit: () => void; onClose: () => void }) {
+  row, periods, drillable, onDrill, editing, onEdit, onClose,
+}: {
+  row: ReportRow
+  periods: PeriodKey[]
+  drillable: boolean
+  onDrill: (period: PeriodKey | 'total') => void
+  editing: boolean
+  onEdit: () => void
+  onClose: () => void
+}) {
   if (row.kind === 'header') {
     return (
       <tr className="report__row report__row--header">
@@ -131,6 +171,9 @@ function RowView({
   }
   const total = cell(rowTotal(row))
   const isTotalRow = row.code.endsWith('_total')
+  // кликабельны только непустые ячейки drill-able строк (агрегатов)
+  const numCls = (c: { neg: boolean; text: string }) =>
+    `report__num ${c.neg ? 'report__num--neg' : ''} ${drillable && c.text && c.text !== '—' ? 'report__num--drill' : ''}`
   return (
     <>
       <tr className={`report__row ${isTotalRow ? 'report__row--total' : ''}`}>
@@ -144,11 +187,23 @@ function RowView({
         </td>
         {row.values.map((v, i) => {
           const c = cell(v)
+          const drillOk = drillable && c.text !== '' && c.text !== '—'
           return (
-            <td key={i} className={`report__num ${c.neg ? 'report__num--neg' : ''}`}>{c.text}</td>
+            <td
+              key={i}
+              className={numCls(c)}
+              onClick={drillOk ? () => onDrill(periods[i]) : undefined}
+            >
+              {c.text}
+            </td>
           )
         })}
-        <td className={`report__num report__total-col ${total.neg ? 'report__num--neg' : ''}`}>{total.text}</td>
+        <td
+          className={`${numCls(total)} report__total-col`}
+          onClick={drillable && total.text && total.text !== '—' ? () => onDrill('total') : undefined}
+        >
+          {total.text}
+        </td>
       </tr>
       {editing && <FormulaEditor code={row.code} onClose={onClose} />}
     </>

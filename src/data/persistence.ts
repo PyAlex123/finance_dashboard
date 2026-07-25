@@ -1,27 +1,72 @@
-// Гидрация стора из хранилища при старте и автосохранение изменений (с дебаунсом).
+// Гидрация стора из хранилища и автосохранение изменений (с дебаунсом).
+//
+// Локальный режим (IndexedDB): грузим сразу при старте и сохраняем — как в Фазе 1.
+// Серверный режим (API): рабочее пространство подключается ПОСЛЕ входа пользователя
+// (connectWorkspace) и отключается при выходе (disconnectWorkspace). Автосейв —
+// одна общая подписка, которая пишет в текущий активный репозиторий.
 
 import type { AppStore } from '../store'
 import { hydrate } from '../store/dataSlice'
 import { normalizeSnapshot } from './json'
 import { buildEmptySnapshot, withDefaultAccounts } from './fixtures'
 import type { Repository } from './repository'
+import type { DataSnapshot } from '../domain/types'
 
+let activeRepo: Repository | null = null
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let subscribed = false
+
+function toStore(saved: DataSnapshot | null): DataSnapshot {
+  // Старые снимки без счетов дополняем счетами по умолчанию; иначе — чистый лист.
+  return saved ? withDefaultAccounts(normalizeSnapshot(saved)) : buildEmptySnapshot()
+}
+
+// Единственная подписка на стор. Пишет в activeRepo; при null (нет входа/идёт
+// загрузка) — молчит, чтобы не затирать чужие данные.
+function ensureAutosave(store: AppStore): void {
+  if (subscribed) return
+  subscribed = true
+  store.subscribe(() => {
+    const repo = activeRepo
+    if (!repo) return
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      repo.save(store.getState().data).catch((e) => console.warn('Ошибка сохранения:', e))
+    }, 400)
+  })
+}
+
+/** Локальный режим (IndexedDB): загрузить сохранённое и включить автосейв. */
 export async function initPersistence(store: AppStore, repo: Repository): Promise<void> {
+  ensureAutosave(store)
+  activeRepo = repo
   try {
-    const saved = await repo.load()
-    // Есть сохранённые данные — грузим их (старые снимки без счетов дополняем
-    // счетами по умолчанию); иначе стартуем с чистого листа.
-    store.dispatch(hydrate(saved ? withDefaultAccounts(normalizeSnapshot(saved)) : buildEmptySnapshot()))
+    store.dispatch(hydrate(toStore(await repo.load())))
   } catch (e) {
     console.warn('Не удалось загрузить сохранённые данные:', e)
     store.dispatch(hydrate(buildEmptySnapshot()))
   }
+}
 
-  let timer: ReturnType<typeof setTimeout> | null = null
-  store.subscribe(() => {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => {
-      repo.save(store.getState().data).catch((e) => console.warn('Ошибка сохранения:', e))
-    }, 400)
-  })
+/** Серверный режим: подключить рабочее пространство пользователя (после входа). */
+export async function connectWorkspace(store: AppStore, repo: Repository): Promise<void> {
+  ensureAutosave(store)
+  activeRepo = null // приостановить автосейв, пока грузим (гидрация не должна писать обратно)
+  try {
+    store.dispatch(hydrate(toStore(await repo.load())))
+  } catch (e) {
+    console.warn('Не удалось загрузить данные с сервера:', e)
+    store.dispatch(hydrate(buildEmptySnapshot()))
+  } finally {
+    activeRepo = repo // включить автосейв в это пространство
+  }
+}
+
+/** Серверный режим: отключить (выход) — прекратить сохранять. */
+export function disconnectWorkspace(): void {
+  activeRepo = null
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
 }

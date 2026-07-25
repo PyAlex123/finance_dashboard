@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getUsername, setUsername as persistUsername, clearUsername } from './features/session/session'
+import { connectBackend, disconnectBackend } from './data/backend'
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
 import App from './App'
@@ -11,11 +12,21 @@ export default function Shell() {
   const [username, setUser] = useState<string | null>(() => getUsername())
   const [module, setModule] = useState<ModuleId | null>(null)
 
+  // Серверный режим: подключить пространство запомненного пользователя при старте.
+  // Локальный режим — no-op (данные уже загружены в main.tsx).
+  useEffect(() => {
+    if (username) void connectBackend(username)
+    // один раз при монтировании; последующие входы/выходы обрабатывают login/logout
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   function login(name: string) {
     persistUsername(name)
     setUser(name)
+    void connectBackend(name)
   }
   function logout() {
+    disconnectBackend()
     clearUsername()
     setUser(null)
     setModule(null)

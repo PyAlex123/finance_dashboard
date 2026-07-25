@@ -1,0 +1,10 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlalchemy>=2.0
+alembic>=1.13
+python-dotenv>=1.0
+
+# Только для MySQL 8 (цель Фазы 4). Раскомментируйте, если
+# DATABASE_URL=mysql+pymysql://user:pass@host:3306/fin_reports
+# pymysql>=1.1
+# cryptography>=42

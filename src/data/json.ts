@@ -12,11 +12,13 @@ interface Envelope {
   data: DataSnapshot
 }
 
-function replacer(_key: string, value: unknown): unknown {
+/** Кодирует bigint-суммы в тегированный объект — для JSON.stringify (файл и сеть). */
+export function bigintReplacer(_key: string, value: unknown): unknown {
   return typeof value === 'bigint' ? { $bigint: value.toString() } : value
 }
 
-function reviver(_key: string, value: unknown): unknown {
+/** Восстанавливает bigint-суммы из тегированного объекта — для JSON.parse. */
+export function bigintReviver(_key: string, value: unknown): unknown {
   if (value && typeof value === 'object' && '$bigint' in value) {
     return BigInt((value as { $bigint: string }).$bigint)
   }
@@ -30,11 +32,11 @@ export function exportJson(data: DataSnapshot): string {
     exportedAt: new Date().toISOString(),
     data,
   }
-  return JSON.stringify(env, replacer, 2)
+  return JSON.stringify(env, bigintReplacer, 2)
 }
 
 export function importJson(text: string): DataSnapshot {
-  const parsed = JSON.parse(text, reviver) as Partial<Envelope> & Partial<DataSnapshot>
+  const parsed = JSON.parse(text, bigintReviver) as Partial<Envelope> & Partial<DataSnapshot>
   const data = (parsed as Envelope).data ?? (parsed as DataSnapshot)
   if (!data || !Array.isArray(data.operations) || !Array.isArray(data.accounts)) {
     throw new Error('Не похоже на файл финансовых отчётов')

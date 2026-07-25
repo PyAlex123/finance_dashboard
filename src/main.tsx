@@ -7,9 +7,12 @@ import './index.css'
 import { store } from './store'
 import { initPersistence } from './data/persistence'
 import { createIdbRepo } from './data/idbRepo'
+import { REMOTE } from './data/backend'
 import Shell from './Shell.tsx'
 
-void initPersistence(store, createIdbRepo())
+// Локальный режим — грузим IndexedDB сразу. Серверный режим — данные подключаются
+// после входа (Shell → connectBackend), пространство зависит от имени пользователя.
+if (!REMOTE) void initPersistence(store, createIdbRepo())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

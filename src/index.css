@@ -147,10 +147,37 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   overflow: auto;
 }
 
-/* --- Дашборд (плейсхолдер; наполнение — этап UI-9) --- */
+/* --- Дашборд --- */
 .dash__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
   color: var(--accent); margin-bottom: 10px; }
 .dash__title { margin: 0 0 18px; font: 800 22px 'Manrope', sans-serif; letter-spacing: -.03em; color: var(--forest); }
+.dash__kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border);
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 22px; }
+.dash--mobile .dash__kpis { grid-template-columns: 1fr; max-width: 390px; margin-left: auto; margin-right: auto; }
+.kpi { background: #fff; padding: 16px 18px; animation: fadeup .5s ease both; }
+.kpi__label { font: 600 11px 'Manrope', sans-serif; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+.kpi__row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.kpi__value { font: 800 24px 'Manrope', sans-serif; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.kpi__spark { width: 72px; height: 22px; flex: none; overflow: visible; }
+.kpi__sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.dash__charts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.dash--mobile .dash__charts { grid-template-columns: 1fr; max-width: 390px; margin: 0 auto; }
+.chart { background: rgba(255, 255, 255, .9); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.chart__title { font: 700 14px 'Manrope', sans-serif; color: var(--forest); margin-bottom: 16px; }
+.chart__svg { width: 100%; height: auto; display: block; }
+.chart__legend { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.chart__leg { display: flex; align-items: center; gap: 6px; }
+.chart__leg i { width: 10px; height: 10px; border-radius: 3px; }
+.dash-bar { transform-origin: bottom; animation: rise .55s cubic-bezier(.2, .8, .2, 1) both; }
+
+.donut { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.donut__svg { width: 132px; height: 132px; flex: none; }
+.donut__legend { display: flex; flex-direction: column; gap: 9px; font-size: 12.5px; color: var(--text); }
+.donut__item { display: flex; align-items: center; gap: 8px; }
+.donut__item i { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.donut__item b { margin-left: auto; font-family: 'Manrope', sans-serif; padding-left: 12px; }
+.donut__empty { color: var(--muted); }
 
 .placeholder {
   color: var(--muted);

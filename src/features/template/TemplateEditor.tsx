@@ -80,11 +80,18 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
 
   return (
     <div className="tpl">
-      <div className="tpl__main">
-        <div className="tpl__toolbar">
-          <button className="btn btn--primary btn--small" onClick={() => addItem(null)}>+ Статья верхнего уровня</button>
-          {report.error && <span className="tpl__error">⚠ {report.error}</span>}
+      <div className="tpl__pane">
+        <div className="tpl__header">
+          <div>
+            <div className="tpl__eyebrow">Структура отчёта</div>
+            <h2 className="tpl__title">Редактор шаблона {form === 'pl' ? 'P&L' : 'ДДС'}</h2>
+          </div>
+          <button className="btn btn--primary btn--small" onClick={() => addItem(null)}>
+            + Статья верхнего уровня
+          </button>
         </div>
+        {report.error && <div className="tpl__error">⚠ {report.error}</div>}
+        <div className="tpl__main">
 
         <table className="tpl__table">
           <thead>
@@ -96,8 +103,9 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
             {sorted.map((item) => {
               const depth = depthOf(item.code, parentByCode)
               return (
-                <tr key={item.id}>
+                <tr key={item.id} className={`tpl__row tpl__row--${item.kind}`}>
                   <td style={{ paddingLeft: 8 + depth * 16 }}>
+                    <span className="tpl__grip" title="Порядок и вложенность">⋮⋮</span>
                     <input className="tpl__name" value={item.name}
                       onChange={(e) => patch(item, { name: e.target.value })} />
                     <span className="tpl__code">{item.code}</span>
@@ -132,6 +140,7 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       <aside className="tpl__versions">

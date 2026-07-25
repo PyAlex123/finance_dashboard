@@ -384,27 +384,37 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 .refs__add input { width: 120px; }
 
 /* --- Редактор шаблона --- */
-.tpl { display: flex; gap: 16px; align-items: flex-start; height: 100%; }
-.tpl__main { flex: 1; min-width: 0; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
-.tpl__toolbar { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); }
-.tpl__error { color: #b91c1c; font-size: 12px; }
+.tpl { display: flex; gap: 18px; align-items: flex-start; height: 100%; }
+.tpl__pane { flex: 1; min-width: 0; }
+.tpl__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.tpl__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.tpl__title { margin: 0; font: 800 22px 'Manrope', sans-serif; letter-spacing: -.03em; color: var(--forest); }
+.tpl__main { min-width: 0; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+.tpl__error { color: var(--expense); font-size: 12.5px; margin-bottom: 12px; }
 .tpl__table { border-collapse: collapse; width: 100%; font-size: 13px; }
-.tpl__table th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 10px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: #f1f5f9; }
-.tpl__table td { padding: 5px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-.tpl__name { border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; font-size: 13px; width: 200px; }
-.tpl__name:hover, .tpl__name:focus { border-color: var(--border); }
-.tpl__code { display: block; font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); padding-left: 6px; }
-.tpl__table select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; max-width: 160px; }
+.tpl__table th { text-align: left; padding: 11px 10px; border-bottom: 1px solid var(--border); position: sticky; top: 0;
+  background: var(--bg); font: 600 10.5px 'Manrope', sans-serif; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.tpl__table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tpl__row:hover td { background: #fafcfb; }
+.tpl__row--header td:first-child { box-shadow: inset 3px 0 0 var(--forest); }
+.tpl__row--agg td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.tpl__row--calc td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.tpl__row--input td:first-child { box-shadow: inset 3px 0 0 var(--mint); }
+.tpl__grip { color: #c7d3cd; cursor: grab; font-size: 14px; margin-right: 6px; vertical-align: middle; }
+.tpl__name { border: 1px solid transparent; border-radius: 6px; padding: 5px 7px; font: 500 13.5px 'Golos Text', sans-serif; width: 200px; }
+.tpl__name:hover, .tpl__name:focus { border-color: var(--border); outline: none; }
+.tpl__code { display: block; font-family: ui-monospace, monospace; font-size: 10px; color: var(--muted); padding-left: 26px; }
+.tpl__table select { padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; max-width: 160px; background: #fff; }
 .tpl__rule { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .tpl__rule--calc { flex-direction: column; align-items: stretch; }
-.tpl__formula { font-family: ui-monospace, monospace; font-size: 12px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 4px; min-width: 220px; }
-.tpl__formula--err { border-color: #dc2626; background: #fef2f2; }
-.tpl__formula-err { color: #b91c1c; font-size: 11px; }
+.tpl__formula { font: 500 12.5px 'Manrope', monospace; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; min-width: 220px; background: var(--bg); color: var(--muted); }
+.tpl__formula--err { border-color: var(--expense); background: var(--expense-soft); color: var(--text); }
+.tpl__formula-err { color: var(--expense); font-size: 11px; }
 .tpl__muted { color: var(--muted); font-size: 12px; }
 .tpl__actions { white-space: nowrap; }
 .tpl__actions .btn { padding: 3px 7px; }
-.tpl__versions { width: 300px; flex-shrink: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
-.tpl__versions h3 { margin: 0 0 10px; font-size: 15px; }
+.tpl__versions { width: 300px; flex-shrink: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.tpl__versions h3 { margin: 0 0 12px; font: 700 15px 'Manrope', sans-serif; color: var(--forest); }
 .tpl__save { display: flex; gap: 6px; margin-bottom: 12px; }
 .tpl__save input { flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
 .tpl__vlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

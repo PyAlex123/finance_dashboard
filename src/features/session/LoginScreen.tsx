@@ -10,10 +10,15 @@ export default function LoginScreen({ onLogin }: { onLogin: (username: string) =
 
   return (
     <div className="welcome">
+      <div className="welcome__blob welcome__blob--a" aria-hidden="true" />
+      <div className="welcome__blob welcome__blob--b" aria-hidden="true" />
       <div className="welcome__card">
         <div className="welcome__logo">₮</div>
+        <div className="welcome__eyebrow">Язык денег</div>
         <h1 className="welcome__title">Финансовые отчёты</h1>
-        <p className="welcome__subtitle">Введите имя, чтобы войти</p>
+        <p className="welcome__subtitle">
+          Управленческий учёт вместо Excel: ДДС, P&amp;L и Баланс в одном рабочем пространстве.
+        </p>
         <form
           className="welcome__form"
           onSubmit={(e) => { e.preventDefault(); submit() }}

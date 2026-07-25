@@ -240,19 +240,33 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 .app__back { white-space: nowrap; }
 
 /* --- Экран входа (welcome) --- */
-.welcome { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
-  background: radial-gradient(1200px 600px at 50% -10%, #dbeafe, transparent), var(--bg); }
-.welcome__card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
-  padding: 40px 36px; width: 380px; max-width: 92vw; text-align: center; box-shadow: 0 20px 60px rgba(15,23,42,.12); }
-.welcome__logo { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 16px; display: flex;
-  align-items: center; justify-content: center; font-size: 32px; color: #fff; background: var(--accent); }
-.welcome__title { margin: 0 0 6px; font-size: 22px; }
-.welcome__subtitle { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
+.welcome { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden; padding: 24px; background: var(--bg); }
+.welcome__blob { position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none; }
+.welcome__blob--a { width: 520px; height: 520px; top: -120px; left: -80px; opacity: .55;
+  background: radial-gradient(circle at 30% 30%, var(--mint), transparent 70%);
+  animation: floaty 14s ease-in-out infinite; }
+.welcome__blob--b { width: 460px; height: 460px; bottom: -140px; right: -60px; opacity: .3;
+  filter: blur(50px); background: radial-gradient(circle at 60% 40%, var(--accent), transparent 70%);
+  animation: floaty2 18s ease-in-out infinite; }
+.welcome__card { position: relative; background: rgba(255, 255, 255, .9); backdrop-filter: blur(6px);
+  border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 26px 50px -34px rgba(11, 59, 50, .55);
+  padding: 40px 36px; width: 420px; max-width: 92vw; text-align: center; }
+.welcome__logo { width: 56px; height: 56px; margin: 0 auto 20px; border-radius: 16px; display: flex;
+  align-items: center; justify-content: center; background: var(--forest);
+  box-shadow: 0 12px 24px -12px rgba(11, 59, 50, .6);
+  font: 800 26px 'Manrope', sans-serif; color: var(--mint); letter-spacing: -.04em; }
+.welcome__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 10px; }
+.welcome__title { font: 800 28px/1.1 'Manrope', sans-serif; letter-spacing: -.035em; color: var(--forest);
+  margin: 0 0 8px; }
+.welcome__subtitle { margin: 0 0 28px; color: var(--muted); font-size: 15px; line-height: 1.6; }
 .welcome__form { display: flex; flex-direction: column; gap: 10px; }
-.welcome__input { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; }
-.welcome__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
-.welcome__btn { padding: 12px; font-size: 15px; border-radius: 10px; }
-.welcome__hint { margin: 18px 0 0; font-size: 12px; color: var(--muted); }
+.welcome__input { padding: 13px 16px; border: 1px solid var(--border); border-radius: 999px; font-size: 15px;
+  text-align: center; background: #fff; }
+.welcome__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31, 163, 127, .15); }
+.welcome__btn { padding: 13px; font-size: 14px; border-radius: 999px; }
+.welcome__hint { margin: 22px 0 0; font-size: 12.5px; color: var(--muted); }
 
 /* --- Экран выбора модуля --- */
 .chooser { min-height: 100vh; padding: 40px 24px; max-width: 900px; margin: 0 auto; }

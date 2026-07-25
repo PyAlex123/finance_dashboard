@@ -63,6 +63,11 @@ describe('фильтр типов в журнале', () => {
     expect(cards.length).toBe(expenseCount)
     cards.forEach((c) => {
       expect(within(c as HTMLElement).getByText(/Расход/)).toBeInTheDocument()
+      // сумма расхода видна и НЕ ноль: показана в скобках (баг с «0» не вернётся)
+      const amount = c.querySelector('.jcard__amount') as HTMLElement
+      expect(amount).toBeTruthy()
+      expect(amount.textContent).toMatch(/^\(.+\)$/)
+      expect(amount.textContent).not.toBe('0')
     })
   })
 })

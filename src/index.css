@@ -315,17 +315,26 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 /* Мобильные карточки журнала */
 .jcards { display: flex; flex-direction: column; gap: 10px; max-width: 390px; margin: 0 auto; }
 .jcards__empty { color: var(--muted); font-size: 14px; text-align: center; padding: 40px 16px; }
-.jcard { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.jcard { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; cursor: pointer;
+  transition: border-color .12s, box-shadow .12s; }
+.jcard:hover { border-color: var(--mint); box-shadow: 0 8px 20px -16px rgba(11, 59, 50, .5); }
 .jcard--transfer { background: var(--slate-soft); }
-.jcard__top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.jcard__actions { display: flex; gap: 4px; }
-.jcard__desc { font-size: 14.5px; color: var(--text); margin-bottom: 4px; }
-.jcard__foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
-.jcard__amount { font: 700 15px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; color: var(--text); }
-.jbadge { display: inline-flex; align-items: center; gap: 6px; font: 600 12px 'Manrope', sans-serif; border-radius: 8px; padding: 4px 10px; }
+.jcard__top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.jcard__desc { font-size: 14.5px; color: var(--text); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jcard__foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.jcard__meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.jcard__footright { display: flex; align-items: center; gap: 8px; flex: none; }
+.jcard__amount { font: 700 15px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; }
+.jcard__amount--in { color: var(--accent); }
+.jcard__amount--out { color: var(--expense); }
+.jcard__amount--tr { color: var(--slate); }
+.jcard__del { border: none; background: none; color: #b9c6c0; cursor: pointer; font-size: 13px; padding: 2px 4px; line-height: 1; }
+.jcard__del:hover { color: var(--expense); }
+.jbadge { display: inline-flex; align-items: center; gap: 6px; font: 600 12px 'Manrope', sans-serif; border-radius: 8px; padding: 4px 10px; white-space: nowrap; }
 .jbadge--in { color: var(--accent); background: var(--accent-soft); }
 .jbadge--out { color: var(--expense); background: var(--expense-soft); }
 .jbadge--tr { color: var(--slate); background: var(--slate-soft); }
+.jbadge--cat { color: var(--forest); background: var(--mint); }
 
 /* Тема AG Grid под палитру forest */
 .ag-theme-quartz {
@@ -646,4 +655,12 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 
   /* Справочники: секции на всю ширину */
   .refs__section { min-width: 0; width: 100%; }
+
+  /* Журнал: панель действий в столбик, «Сегодня» на всю ширину, фильтр скроллом */
+  .panel { max-width: 390px; margin: 0 auto; }
+  .actionbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .actionbar > .btn--primary { width: 100%; justify-content: center; }
+  .actionbar__right { justify-content: space-between; }
+  .typefilter { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+  .typefilter__btn { white-space: nowrap; }
 }

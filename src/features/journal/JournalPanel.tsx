@@ -5,8 +5,7 @@ import { deleteOperation, upsertAccount } from '../../store/dataSlice'
 import JournalGrid from './JournalGrid'
 import BalancesStrip from './BalancesStrip'
 import OperationForm from './OperationForm'
-import { selectJournalRows, TYPE_LABEL } from './journalRows'
-import { formatDateLabel } from './rowEdit'
+import { selectJournalRows } from './journalRows'
 import { formatMoney } from '../../domain/money'
 import { autoCode } from '../../domain/codes'
 import { useViewMode } from '../shell/ViewMode'
@@ -130,7 +129,13 @@ export default function JournalPanel() {
   )
 }
 
-/** Мобильный вид журнала: карточки вместо широкой таблицы. */
+// Метка типа для мобильных карточек (● / ⇄ + слово, как в эталоне).
+const MOBILE_TYPE: Record<OperationType, string> = {
+  income: '● Приход', expense: '● Расход', transfer: '⇄ Переброска',
+}
+const shortDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`
+
+/** Мобильный вид журнала: карточки вместо широкой таблицы (как в эталоне). */
 function MobileList({
   rows, onEdit, onDelete,
 }: {
@@ -145,26 +150,48 @@ function MobileList({
   return (
     <div className="jcards">
       {rows.map((r) => {
-        // сумма операции = сумма положительных проводок (или модуль по счетам)
-        let amount = 0n
+        // сумма операции: приход/расход — сальдо (знаковое), переброска — перемещённое
+        let net = 0n
+        let moved = 0n
+        const accNames: string[] = []
         for (const a of accounts) {
           const v = r[a.id]
-          if (typeof v === 'bigint' && v > 0n) amount += v as Money
+          if (typeof v === 'bigint' && v !== 0n) {
+            net += v as Money
+            if (v > 0n) moved += v as Money
+            accNames.push(a.name)
+          }
         }
-        const cls = r.type === 'income' ? 'jbadge--in' : r.type === 'expense' ? 'jbadge--out' : 'jbadge--tr'
+        const value = r.type === 'transfer' ? moved : net
+        const neg = value < 0n
+        const amountText = neg ? `(${formatMoney(-value)})` : formatMoney(value)
+        const badgeCls = r.type === 'income' ? 'jbadge--in' : r.type === 'expense' ? 'jbadge--out' : 'jbadge--tr'
+        const amountCls = r.type === 'income' ? 'jcard__amount--in' : r.type === 'expense' ? 'jcard__amount--out' : 'jcard__amount--tr'
+        const accLabel = accNames.join(r.type === 'transfer' ? ' → ' : ', ')
         return (
-          <div key={r.id} className={`jcard jcard--${r.type}`}>
+          <div
+            key={r.id}
+            className={`jcard jcard--${r.type}`}
+            onClick={() => onEdit(r.id)}
+            title="Нажмите, чтобы изменить"
+          >
             <div className="jcard__top">
-              <span className={`jbadge ${cls}`}>{TYPE_LABEL[r.type]}</span>
-              <div className="jcard__actions">
-                <button className="btn btn--small" onClick={() => onEdit(r.id)}>✎</button>
-                <button className="btn btn--small btn--danger" onClick={() => onDelete(r.id)}>✕</button>
-              </div>
+              <span className={`jbadge ${badgeCls}`}>{MOBILE_TYPE[r.type]}</span>
+              <span className={`jcard__amount ${amountCls}`}>{amountText}</span>
             </div>
             <div className="jcard__desc">{r.description || '—'}</div>
             <div className="jcard__foot">
-              <span>{formatDateLabel(r.date)}{r.categoryName ? ` · ${r.categoryName}` : ''}</span>
-              <span className="jcard__amount">{formatMoney(amount)}</span>
+              <span className="jcard__meta">{shortDate(r.date)}{accLabel ? ` · ${accLabel}` : ''}</span>
+              <span className="jcard__footright">
+                {r.categoryName && <span className="jbadge jbadge--cat">{r.categoryName}</span>}
+                <button
+                  className="jcard__del"
+                  onClick={(e) => { e.stopPropagation(); onDelete(r.id) }}
+                  title="Удалить операцию"
+                >
+                  ✕
+                </button>
+              </span>
             </div>
           </div>
         )

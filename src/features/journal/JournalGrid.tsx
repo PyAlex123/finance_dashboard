@@ -10,10 +10,12 @@ import { formatMoney, parseMoney, type Money } from '../../domain/money'
 import { CategoryCellEditor, DateCellEditor, MoneyCellEditor } from './cellEditors'
 import type { Account, OperationType } from '../../domain/types'
 
+// Переброски тонируем слейт-синим (как в эталоне); приход/расход — белые строки,
+// цвет несёт бейдж типа и знак суммы.
 const ROW_TINT: Record<string, string> = {
-  income: 'rgba(34,197,94,0.08)',
-  expense: 'rgba(239,68,68,0.08)',
-  transfer: 'rgba(59,130,246,0.10)',
+  income: 'transparent',
+  expense: 'transparent',
+  transfer: 'rgba(74,107,132,0.10)',
 }
 
 const TYPE_BY_LABEL = new Map<string, OperationType>(
@@ -45,15 +47,20 @@ function toSnapshot(row: JournalRow, accounts: Account[]): RowSnapshot {
 }
 
 export default function JournalGrid({
-  onEdit, onDelete,
+  onEdit, onDelete, typeFilter = 'all',
 }: {
   onEdit?: (id: string) => void
   onDelete?: (id: string) => void
+  typeFilter?: OperationType | 'all'
 }) {
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectActiveAccounts)
   const categories = useAppSelector(selectCategories)
-  const rows = useAppSelector(selectJournalRows)
+  const allRows = useAppSelector(selectJournalRows)
+  const rows = useMemo(
+    () => (typeFilter === 'all' ? allRows : allRows.filter((r) => r.type === typeFilter)),
+    [allRows, typeFilter],
+  )
 
   const columnDefs = useMemo<ColDef<JournalRow>[]>(() => {
     // общий обработчик правки: пересобрать операцию и записать в стор
@@ -107,7 +114,7 @@ export default function JournalGrid({
       cellStyle: (p) => {
         const v = p.value as Money | undefined
         if (v == null || v === 0n) return null
-        return { color: v < 0n ? '#dc2626' : '#16a34a', textAlign: 'right' }
+        return { color: v < 0n ? '#b85c38' : '#1fa37f', textAlign: 'right', fontWeight: 600 }
       },
       valueSetter: (p: ValueSetterParams<JournalRow>) => {
         const text = String(p.newValue ?? '').trim()

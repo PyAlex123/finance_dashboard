@@ -7,6 +7,7 @@ import { buildReport } from '../engine/report'
 import { runChecks, allChecksOk } from '../engine/checks'
 import { buildAggContext, aggValue } from '../engine/aggregate'
 import type { Money } from '../domain/money'
+import type { Currency } from '../domain/types'
 
 // ДДС (форма cf)
 export const selectReport = createSelector([selectData], (data) => buildReport(data, { form: 'cf' }))
@@ -31,6 +32,44 @@ export const selectTotalBalance = createSelector(
       (sum, a) => sum + aggValue(ctx, { measure: 'balance', accountCode: a.code }, last),
       0n,
     )
+  },
+)
+
+export interface AccountBalance {
+  id: string
+  name: string
+  currency: Currency
+  /** Остаток в валюте счёта. */
+  native: Money
+  /** Остаток в базовой валюте (UZS), пересчитанный по курсу. */
+  base: Money
+}
+
+/**
+ * Остатки по всем активным счетам на конец последнего периода журнала:
+ * в валюте счёта (native) и в базовой валюте (base, через агрегат с пересчётом).
+ * Для полосы остатков журнала.
+ */
+export const selectAccountBalances = createSelector(
+  [selectData, selectActiveAccounts, selectPeriods],
+  (data, accounts, periods): AccountBalance[] => {
+    const ctx = buildAggContext(data)
+    const last = periods.length ? periods[periods.length - 1] : '9999-12'
+    // Остаток в валюте счёта = начальный остаток + все проводки счёта (без пересчёта).
+    const nativeById = new Map<string, Money>()
+    for (const ob of data.openingBalances) {
+      nativeById.set(ob.accountId, (nativeById.get(ob.accountId) ?? 0n) + ob.amount)
+    }
+    for (const l of data.operationLines) {
+      nativeById.set(l.accountId, (nativeById.get(l.accountId) ?? 0n) + l.amount)
+    }
+    return accounts.map((a) => ({
+      id: a.id,
+      name: a.name,
+      currency: a.currency,
+      native: nativeById.get(a.id) ?? 0n,
+      base: aggValue(ctx, { measure: 'balance', accountCode: a.code }, last),
+    }))
   },
 )
 

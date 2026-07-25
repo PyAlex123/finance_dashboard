@@ -212,8 +212,79 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 /* --- Панель журнала --- */
 .panel { display: flex; flex-direction: column; height: 100%; }
 .panel__grid { flex: 1; min-height: 0; }
+.panel__hint { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
 .toolbar { display: flex; gap: 8px; align-items: center; padding-bottom: 10px; }
 .toolbar__hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+/* Полоса остатков по счетам */
+.balances__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 12px; }
+.balances { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; margin-bottom: 22px; }
+.balances--mobile { grid-template-columns: 1fr 1fr; max-width: 390px; margin: 0 auto 14px; }
+.balances__card { background: #fff; padding: 15px 18px; }
+.balances__head { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.balances__cur { font: 600 10px 'Manrope', sans-serif; color: var(--muted); background: var(--bg); border-radius: 5px; padding: 2px 6px; }
+.balances__amount { font: 800 21px 'Manrope', sans-serif; letter-spacing: -.04em; color: var(--text); font-variant-numeric: tabular-nums; }
+.balances__sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 3px; }
+.balances__card--total { background: var(--forest); color: #fff; }
+.balances__head--total { justify-content: space-between; color: var(--mint); }
+.balances__amount--total { color: #fff; }
+.balances__pill { display: flex; align-items: center; gap: 5px; font: 600 10.5px 'Manrope', sans-serif; border-radius: 5px; padding: 2px 7px; }
+.balances__pill--ok { color: var(--forest); background: var(--mint); }
+.balances__pill--warn { color: #fff; background: var(--warn); }
+
+/* Панель действий журнала */
+.actionbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.actionbar__plus { font-size: 16px; line-height: 1; margin-right: 6px; }
+.actionbar__right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.actionbar__count { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Сегментный фильтр типов */
+.typefilter { display: flex; gap: 4px; background: #eef3f1; border-radius: 9px; padding: 4px; }
+.typefilter__btn { font: 600 12.5px 'Manrope', sans-serif; border: 1px solid transparent; background: transparent;
+  color: var(--muted); border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+.typefilter__btn--active { background: #fff; box-shadow: 0 1px 2px rgba(11, 59, 50, .08); }
+.typefilter__btn--all.typefilter__btn--active { border-color: var(--forest); color: var(--forest); }
+.typefilter__btn--income.typefilter__btn--active { border-color: var(--accent); color: var(--accent); }
+.typefilter__btn--expense.typefilter__btn--active { border-color: var(--expense); color: var(--expense); }
+.typefilter__btn--transfer.typefilter__btn--active { border-color: var(--slate); color: var(--slate); }
+
+/* Мобильные карточки журнала */
+.jcards { display: flex; flex-direction: column; gap: 10px; max-width: 390px; margin: 0 auto; }
+.jcards__empty { color: var(--muted); font-size: 14px; text-align: center; padding: 40px 16px; }
+.jcard { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.jcard--transfer { background: var(--slate-soft); }
+.jcard__top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.jcard__actions { display: flex; gap: 4px; }
+.jcard__desc { font-size: 14.5px; color: var(--text); margin-bottom: 4px; }
+.jcard__foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+.jcard__amount { font: 700 15px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; color: var(--text); }
+.jbadge { display: inline-flex; align-items: center; gap: 6px; font: 600 12px 'Manrope', sans-serif; border-radius: 8px; padding: 4px 10px; }
+.jbadge--in { color: var(--accent); background: var(--accent-soft); }
+.jbadge--out { color: var(--expense); background: var(--expense-soft); }
+.jbadge--tr { color: var(--slate); background: var(--slate-soft); }
+
+/* Тема AG Grid под палитру forest */
+.ag-theme-quartz {
+  --ag-font-family: 'Golos Text', 'Manrope', sans-serif;
+  --ag-foreground-color: var(--text);
+  --ag-background-color: #fff;
+  --ag-header-background-color: var(--bg);
+  --ag-header-foreground-color: var(--muted);
+  --ag-border-color: var(--border);
+  --ag-row-border-color: var(--border);
+  --ag-row-hover-color: #fafcfb;
+  --ag-selected-row-background-color: var(--accent-soft);
+  --ag-header-column-resize-handle-color: var(--border);
+  --ag-input-focus-border-color: var(--accent);
+  --ag-range-selection-border-color: var(--accent);
+  --ag-borders: solid 1px;
+  --ag-border-radius: 12px;
+}
+.ag-theme-quartz .ag-header-cell-text {
+  font: 600 11px 'Manrope', sans-serif; letter-spacing: .09em; text-transform: uppercase;
+}
 
 /* --- Модальная форма --- */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.4); display: flex; align-items: center; justify-content: center; z-index: 50; }

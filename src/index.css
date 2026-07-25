@@ -515,12 +515,52 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
 .chooser__ds a { font: 600 12px 'Manrope', sans-serif; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
 .chooser__ds a:hover { color: var(--accent); }
 
-/* --- Дизайн-система (плейсхолдер; полное наполнение — этап UI-10) --- */
+/* --- Дизайн-система --- */
 .ds { min-height: 100vh; background: var(--bg); padding: 48px 32px 80px; }
 .ds__top { max-width: 1080px; margin: 0 auto 36px; display: flex; justify-content: space-between; align-items: center; }
 .ds__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
   color: var(--accent); margin-bottom: 12px; }
 .ds__title { margin: 0; font: 800 32px 'Manrope', sans-serif; letter-spacing: -.035em; color: var(--forest); }
+.ds__wrap { max-width: 1080px; margin: 0 auto; }
+.ds__section-label { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 14px; }
+.ds__swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 38px; }
+.ds__swatch { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #fff; }
+.ds__swatch-color { height: 64px; }
+.ds__swatch-meta { padding: 10px 12px; }
+.ds__swatch-name { font: 700 13px 'Manrope', sans-serif; color: var(--forest); }
+.ds__swatch-hex { font: 500 11.5px 'Manrope', monospace; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ds__card { background: rgba(255, 255, 255, .9); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+.ds__card-title { font: 700 14px 'Manrope', sans-serif; color: var(--forest); margin-bottom: 16px; }
+.ds__type { padding: 26px 28px; margin-bottom: 38px; display: flex; flex-direction: column; gap: 16px; }
+.ds__type-h1 { font: 800 34px 'Manrope', sans-serif; letter-spacing: -.035em; color: var(--forest); }
+.ds__type-body { font: 400 16px/1.6 'Golos Text', sans-serif; color: var(--text); max-width: 560px; }
+.ds__type-nums { display: flex; gap: 28px; align-items: baseline; flex-wrap: wrap; }
+.ds__num-big { font: 800 26px 'Manrope', sans-serif; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: var(--text); }
+.ds__num-neg { font: 700 18px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; color: var(--expense); }
+.ds__num-note { font: 600 12px 'Manrope', sans-serif; color: var(--muted); }
+.ds__grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
+.ds__row { display: flex; flex-wrap: wrap; gap: 10px; }
+.ds__row--center { justify-content: center; }
+.ds__btn-quiet { font: 600 13px 'Manrope', sans-serif; background: none; color: var(--muted); border: none; border-radius: 8px; padding: 9px 12px; cursor: pointer; }
+.ds__badge-cat { font: 600 12px 'Manrope', sans-serif; color: var(--forest); background: var(--mint); border-radius: 8px; padding: 4px 10px; }
+.ds__badge-warn { font: 600 12px 'Manrope', sans-serif; color: var(--warn); background: var(--warn-soft); border-radius: 8px; padding: 4px 10px; }
+.ds__input { display: block; width: 100%; font-size: 14px; color: var(--text); background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+.ds__input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31, 163, 127, .15); }
+.ds__amount { display: flex; align-items: center; background: #fff; border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; box-shadow: 0 0 0 3px rgba(31, 163, 127, .15); }
+.ds__amount input { flex: 1; border: none; outline: none; font: 700 15px 'Manrope', sans-serif; font-variant-numeric: tabular-nums; color: var(--text); }
+.ds__amount span { font: 600 12px 'Manrope', sans-serif; color: var(--muted); }
+.ds__hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.ds__empty { border: 1px dashed #c7d3cd; border-radius: 10px; padding: 22px; text-align: center; background: #fff; }
+.ds__empty-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 18px; }
+.ds__empty-text { font-size: 14px; color: var(--text); margin-bottom: 14px; }
+
+/* --- Тост --- */
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 200;
+  background: var(--forest); color: #fff; font: 600 13.5px 'Manrope', sans-serif; padding: 12px 18px;
+  border-radius: 10px; box-shadow: 0 26px 50px -34px rgba(11, 59, 50, .55); display: flex; align-items: center;
+  gap: 10px; animation: toastin .25s ease; }
+.toast__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); }
 
 /* --- Пустые состояния --- */
 .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;

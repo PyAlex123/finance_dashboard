@@ -8,6 +8,7 @@ import {
 import { parseMoney, toMajorNumber } from '../../domain/money'
 import { autoCode } from '../../domain/codes'
 import { directionForType, todayIso } from './rowEdit'
+import { useToast } from '../ui/Toast'
 import type { OperationType } from '../../domain/types'
 
 // Сегментный контрол типа — семантические цвета из эталона.
@@ -31,6 +32,7 @@ export default function OperationForm({
   operationId?: string
 }) {
   const dispatch = useAppDispatch()
+  const toast = useToast()
   const accounts = useAppSelector(selectActiveAccounts)
   const categories = useAppSelector(selectCategories)
   const data = useAppSelector(selectData)
@@ -120,8 +122,10 @@ export default function OperationForm({
         operation: { ...input.operation, id: editing.id },
         lines: input.lines.map((l, i) => ({ ...l, id: `${editing.id}-l${i + 1}`, operationId: editing.id })),
       }))
+      toast('Операция сохранена')
     } else {
       dispatch(addOperation(input))
+      toast('Операция добавлена в журнал')
     }
     onClose()
   }
@@ -132,6 +136,7 @@ export default function OperationForm({
     const input = buildInput()
     if (typeof input === 'string') return setError(input)
     dispatch(addOperation(input))
+    toast('Добавлено · форма готова к следующей')
     setAmount('')
     setDescription('')
     setNote('')

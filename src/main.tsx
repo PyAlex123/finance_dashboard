@@ -8,6 +8,7 @@ import { store } from './store'
 import { initPersistence } from './data/persistence'
 import { createIdbRepo } from './data/idbRepo'
 import { REMOTE } from './data/backend'
+import { ToastProvider } from './features/ui/Toast'
 import Shell from './Shell.tsx'
 
 // Локальный режим — грузим IndexedDB сразу. Серверный режим — данные подключаются
@@ -17,7 +18,9 @@ if (!REMOTE) void initPersistence(store, createIdbRepo())
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      <Shell />
+      <ToastProvider>
+        <Shell />
+      </ToastProvider>
     </Provider>
   </StrictMode>,
 )

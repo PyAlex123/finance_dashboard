@@ -6,6 +6,7 @@ import { exportJson, importJson } from '../../data/json'
 import { exportXlsx, importXlsx } from '../../data/xlsx'
 import { buildFixtureSnapshot, buildEmptySnapshot } from '../../data/fixtures'
 import ImportWizard from '../import/ImportWizard'
+import { useToast } from '../ui/Toast'
 
 export default function DataMenu({
   open, onToggle, onClose,
@@ -16,6 +17,7 @@ export default function DataMenu({
 }) {
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
+  const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState('')
   const [wizardBuf, setWizardBuf] = useState<ArrayBuffer | null>(null)
@@ -33,6 +35,7 @@ export default function DataMenu({
 
   function doExportJson() {
     download(exportJson(data), `dds-${stamp()}.json`, 'application/json')
+    toast('Экспорт JSON — готово')
   }
   function doExportXlsx() {
     download(
@@ -40,6 +43,7 @@ export default function DataMenu({
       `dds-${stamp()}.xlsx`,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
+    toast('Экспорт Excel — готово')
   }
 
   async function doImport(file: File) {
@@ -73,6 +77,7 @@ export default function DataMenu({
       onClick: () => {
         if (confirm('Загрузить учебный пример (янв–март)? Текущие данные будут заменены.')) {
           dispatch(hydrate(buildFixtureSnapshot()))
+          toast('Учебный пример загружен')
         }
       },
     },
@@ -81,6 +86,7 @@ export default function DataMenu({
       onClick: () => {
         if (confirm('Очистить всё до чистого листа? Текущие данные будут удалены.')) {
           dispatch(hydrate(buildEmptySnapshot()))
+          toast('Чистый лист готов')
         }
       },
     },

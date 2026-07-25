@@ -7,7 +7,13 @@ import { exportXlsx, importXlsx } from '../../data/xlsx'
 import { buildFixtureSnapshot, buildEmptySnapshot } from '../../data/fixtures'
 import ImportWizard from '../import/ImportWizard'
 
-export default function DataMenu() {
+export default function DataMenu({
+  open, onToggle, onClose,
+}: {
+  open: boolean
+  onToggle: () => void
+  onClose: () => void
+}) {
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -58,31 +64,46 @@ export default function DataMenu() {
     setTimeout(() => setMsg(''), 3000)
   }
 
+  const actions: { label: string; onClick: () => void }[] = [
+    { label: 'Экспорт Excel', onClick: doExportXlsx },
+    { label: 'Экспорт JSON', onClick: doExportJson },
+    { label: 'Импорт (JSON / Excel)', onClick: () => fileRef.current?.click() },
+    {
+      label: 'Загрузить пример',
+      onClick: () => {
+        if (confirm('Загрузить учебный пример (янв–март)? Текущие данные будут заменены.')) {
+          dispatch(hydrate(buildFixtureSnapshot()))
+        }
+      },
+    },
+    {
+      label: 'Чистый лист',
+      onClick: () => {
+        if (confirm('Очистить всё до чистого листа? Текущие данные будут удалены.')) {
+          dispatch(hydrate(buildEmptySnapshot()))
+        }
+      },
+    },
+  ]
+
   return (
     <div className="datamenu">
-      <button className="btn btn--small" onClick={doExportXlsx}>Экспорт Excel</button>
-      <button className="btn btn--small" onClick={doExportJson}>Экспорт JSON</button>
-      <button className="btn btn--small" onClick={() => fileRef.current?.click()}>Импорт (JSON/Excel)</button>
-      <button
-        className="btn btn--small"
-        onClick={() => {
-          if (confirm('Загрузить учебный пример (янв–март)? Текущие данные будут заменены.')) {
-            dispatch(hydrate(buildFixtureSnapshot()))
-          }
-        }}
-      >
-        Загрузить пример
+      <button className="btn datamenu__trigger" onClick={onToggle}>
+        <span className="datamenu__dots">⋯</span>Данные
       </button>
-      <button
-        className="btn btn--small"
-        onClick={() => {
-          if (confirm('Очистить всё до чистого листа? Текущие данные будут удалены.')) {
-            dispatch(hydrate(buildEmptySnapshot()))
-          }
-        }}
-      >
-        Чистый лист
-      </button>
+      {open && (
+        <div className="datamenu__panel">
+          {actions.map((a) => (
+            <button
+              key={a.label}
+              className="datamenu__item"
+              onClick={() => { onClose(); a.onClick() }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
       {msg && <span className="datamenu__msg">{msg}</span>}
       <input
         ref={fileRef}

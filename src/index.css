@@ -59,62 +59,98 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   height: 100vh;
 }
 
-.app__header {
-  padding: 12px 20px;
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: rgba(244, 247, 245, .92);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
+}
+
+.app__header {
+  padding: 14px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
 
-.datamenu { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.datamenu__msg { font-size: 12px; color: var(--muted); }
+.datamenu { position: relative; }
+.datamenu__trigger { display: flex; align-items: center; gap: 7px; }
+.datamenu__dots { font-size: 15px; }
+.datamenu__panel {
+  position: absolute; right: 0; top: 44px; background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 26px 50px -34px rgba(11, 59, 50, .55); padding: 6px; min-width: 200px; z-index: 40;
+}
+.datamenu__item {
+  display: block; width: 100%; text-align: left; font-size: 13.5px; color: var(--text);
+  background: none; border: none; border-radius: 6px; padding: 9px 10px; cursor: pointer;
+}
+.datamenu__item:hover { background: var(--bg); }
+.datamenu__msg { font-size: 12px; color: var(--muted); margin-left: 8px; }
 
 .app__title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
+  font: 800 19px 'Manrope', sans-serif;
+  letter-spacing: -.03em;
+  color: var(--forest);
 }
 
 .app__subtitle {
   margin: 2px 0 0;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--muted);
+}
+
+.viewswitch { display: flex; background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.viewswitch__btn {
+  border: none; background: none; font: 600 12px 'Manrope', sans-serif; letter-spacing: .04em;
+  padding: 8px 12px; color: var(--muted); cursor: pointer;
+}
+.viewswitch__btn--active { background: var(--forest); color: #fff; }
+
+.app__whoami { display: flex; align-items: center; gap: 9px; }
+.app__avatar {
+  width: 32px; height: 32px; border-radius: 50%; background: var(--mint); display: flex;
+  align-items: center; justify-content: center; font: 700 12px 'Manrope', sans-serif; color: var(--forest);
 }
 
 .tabs {
   display: flex;
   gap: 4px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  padding: 0 28px;
 }
 
 .tab {
   appearance: none;
   border: none;
   background: none;
-  padding: 10px 16px;
-  font-size: 14px;
+  padding: 12px 14px;
+  font: 600 12px 'Manrope', sans-serif;
+  letter-spacing: .09em;
+  text-transform: uppercase;
   color: var(--muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
 }
 
 .tab--active {
-  color: var(--text);
+  color: var(--forest);
   border-bottom-color: var(--accent);
-  font-weight: 600;
 }
 
 .app__content {
   flex: 1;
   min-height: 0;
-  padding: 16px 20px;
+  padding: 24px 28px 80px;
   overflow: auto;
 }
+
+/* --- Дашборд (плейсхолдер; наполнение — этап UI-9) --- */
+.dash__eyebrow { font: 600 11.5px/1 'Manrope', sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 10px; }
+.dash__title { margin: 0 0 18px; font: 800 22px 'Manrope', sans-serif; letter-spacing: -.03em; color: var(--forest); }
 
 .placeholder {
   color: var(--muted);

@@ -1,26 +1,23 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { makeStore } from '../../store'
 import { hydrate } from '../../store/dataSlice'
 import { buildEmptySnapshot } from '../../data/fixtures'
-import Shell from '../../Shell'
-import { clearUsername } from '../session/session'
+import PlApp from './PlApp'
 
 afterEach(cleanup)
-beforeEach(() => clearUsername())
 
+// P&L сейчас скрыт заглушкой «Скоро» в выборе модулей, но сам компонент рабочей
+// области жив — тестируем его напрямую (вернём в меню, когда снимем заглушку).
 function openPl() {
   const store = makeStore()
   store.dispatch(hydrate(buildEmptySnapshot()))
   render(
     <Provider store={store}>
-      <Shell />
+      <PlApp />
     </Provider>,
   )
-  fireEvent.change(screen.getByLabelText('Юзернейм'), { target: { value: 'Ю' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
-  fireEvent.click(screen.getByRole('button', { name: /P&L/ }))
 }
 
 describe('P&L рабочая область', () => {

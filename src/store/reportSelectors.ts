@@ -18,6 +18,18 @@ export const selectChecksOk = createSelector([selectChecks], (checks) => allChec
 export const selectPlReport = createSelector([selectData], (data) => buildReport(data, { form: 'pl' }))
 export const selectPlChecks = createSelector([selectData], (data) => runChecks(data, 'pl'))
 
+// Баланс (форма bs). Точка во времени; главная проверка — балансовое уравнение
+// (строка bs_check == 0 по каждой дате). Отдельного набора runChecks не заводим —
+// контроль встроен в отчёт строкой bs_check.
+export const selectBsReport = createSelector([selectData], (data) => buildReport(data, { form: 'bs' }))
+
+/** Сходится ли баланс на всех датах (Активы = Обязательства + Капитал). null — нет данных. */
+export const selectBsBalanced = createSelector([selectBsReport], (report): boolean | null => {
+  const row = report.rows.find((r) => r.code === 'bs_check')
+  if (!row || row.values.length === 0) return null
+  return row.values.every((v) => v === 0n)
+})
+
 /**
  * Суммарный остаток по всем активным счетам в базовой валюте (UZS) на конец
  * последнего периода журнала. Считается напрямую по агрегатам (не зависит от

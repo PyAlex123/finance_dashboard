@@ -104,3 +104,16 @@ def workspace_for(user: dict) -> str:
 def display_name(user: dict) -> str:
     name = " ".join(p for p in [user.get("first_name"), user.get("last_name")] if p).strip()
     return name or user.get("username") or f"user{user.get('id')}"
+
+
+def user_fields(user: dict) -> dict:
+    """Поля профиля из проверенного initData (для регистрации и показа сверху).
+
+    Всё это уже вернул validate_init_data — раньше отбрасывалось. photo_url/username
+    в Telegram могут отсутствовать."""
+    return {
+        "username": user.get("username"),
+        "first_name": user.get("first_name"),
+        "last_name": user.get("last_name"),
+        "photo_url": user.get("photo_url"),
+    }

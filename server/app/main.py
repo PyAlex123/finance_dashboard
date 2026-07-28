@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +20,8 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .auth import (
-    AuthError, display_name, jwt_decode, jwt_encode, validate_init_data, workspace_for,
+    AuthError, display_name, jwt_decode, jwt_encode, user_fields, validate_init_data,
+    workspace_for,
 )
 from .config import (
     BASE_PATH, CORS_ORIGINS, JWT_SECRET, JWT_TTL_SECONDS, STATIC_DIR,
@@ -61,7 +64,7 @@ class TelegramAuthIn(BaseModel):
 
 
 @api.post("/auth/telegram")
-def auth_telegram(body: TelegramAuthIn) -> dict:
+def auth_telegram(body: TelegramAuthIn, db: Session = Depends(get_session)) -> dict:
     if not TELEGRAM_BOT_TOKEN:
         raise HTTPException(status_code=503, detail="Telegram-логин не настроен на сервере")
     try:
@@ -70,14 +73,39 @@ def auth_telegram(body: TelegramAuthIn) -> dict:
         raise HTTPException(status_code=401, detail=str(e))
     workspace = workspace_for(user)
     name = display_name(user)
+    fields = user_fields(user)
+
+    # Автоматическая регистрация: создаём/обновляем запись пользователя при каждом
+    # входе (последний ник/имя/фото + last_seen). Тело отчётов тут не трогаем.
+    row = db.get(models.User, workspace)
+    if row is None:
+        db.add(models.User(tg_id=workspace, **fields))
+    else:
+        row.username = fields["username"]
+        row.first_name = fields["first_name"]
+        row.last_name = fields["last_name"]
+        row.photo_url = fields["photo_url"]
+        row.last_seen = datetime.now(timezone.utc)
+    db.commit()
+
     token = jwt_encode({"sub": workspace, "name": name}, JWT_SECRET, JWT_TTL_SECONDS)
-    return {"token": token, "workspace": workspace, "name": name}
+    return {
+        "token": token,
+        "workspace": workspace,
+        "name": name,
+        "photoUrl": fields["photo_url"],
+        "username": fields["username"],
+    }
 
 
 def require_workspace_access(workspace: str, authorization: str | None = Header(default=None)) -> None:
     """Пространства tg:* защищены JWT (когда включён Telegram-логин): токен обязан
-    быть валиден и совпадать с пространством. Обычные имена — открыты (локальный
-    режим/LAN), как и раньше."""
+    быть валиден, а пространство — принадлежать владельцу токена.
+
+    Владельцу `tg:<id>` принадлежат как само пространство, так и все его под-ключи
+    отчётов вида `tg:<id>:<form>:<rand>` (проверка по префиксу с двоеточием, чтобы
+    `tg:1` не покрывал `tg:12345`). Обычные имена (не tg:) — открыты, как раньше
+    (локальный режим/LAN)."""
     if not (TELEGRAM_BOT_TOKEN and workspace.startswith("tg:")):
         return
     token = (authorization or "").removeprefix("Bearer ").strip()
@@ -87,7 +115,8 @@ def require_workspace_access(workspace: str, authorization: str | None = Header(
         payload = jwt_decode(token, JWT_SECRET)
     except AuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
-    if payload.get("sub") != workspace:
+    sub = payload.get("sub") or ""
+    if workspace != sub and not workspace.startswith(f"{sub}:"):
         raise HTTPException(status_code=403, detail="Чужое рабочее пространство")
 
 
@@ -146,6 +175,96 @@ def delete_snapshot(
     if row is not None:
         db.delete(row)
         db.commit()
+    return {"ok": True}
+
+
+# ---------- Реестр отчётов: несколько отчётов одного типа у пользователя ----------
+# Тело каждого отчёта — обычный снимок в /snapshot/{id}. Здесь только индекс (мета).
+# Доступ к чужим tg:*-владельцам закрыт тем же JWT-гвардом, что и снимки.
+
+def _report_meta(r: models.Report) -> dict:
+    return {
+        "id": r.id,
+        "owner": r.owner,
+        "form": r.form,
+        "name": r.name,
+        "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
+    }
+
+
+class ReportCreateIn(BaseModel):
+    owner: str
+    form: str
+    name: str
+
+
+class ReportRenameIn(BaseModel):
+    name: str
+
+
+@api.get("/reports")
+def list_reports(
+    owner: str,
+    form: str | None = None,
+    db: Session = Depends(get_session),
+    authorization: str | None = Header(default=None),
+) -> list[dict]:
+    require_workspace_access(owner, authorization)
+    stmt = select(models.Report).where(models.Report.owner == owner)
+    if form:
+        stmt = stmt.where(models.Report.form == form)
+    rows = db.execute(stmt.order_by(models.Report.created_at.asc())).scalars().all()
+    return [_report_meta(r) for r in rows]
+
+
+@api.post("/reports")
+def create_report(
+    body: ReportCreateIn,
+    db: Session = Depends(get_session),
+    authorization: str | None = Header(default=None),
+) -> dict:
+    require_workspace_access(body.owner, authorization)
+    name = body.name.strip() or "Без названия"
+    report_id = f"{body.owner}:{body.form}:{secrets.token_hex(4)}"
+    row = models.Report(id=report_id, owner=body.owner, form=body.form, name=name)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _report_meta(row)
+
+
+@api.patch("/reports/{report_id:path}")
+def rename_report(
+    report_id: str,
+    body: ReportRenameIn,
+    db: Session = Depends(get_session),
+    authorization: str | None = Header(default=None),
+) -> dict:
+    require_workspace_access(report_id, authorization)
+    row = db.get(models.Report, report_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Отчёт не найден")
+    row.name = body.name.strip() or row.name
+    db.commit()
+    db.refresh(row)
+    return _report_meta(row)
+
+
+@api.delete("/reports/{report_id:path}")
+def delete_report(
+    report_id: str,
+    db: Session = Depends(get_session),
+    authorization: str | None = Header(default=None),
+) -> dict:
+    require_workspace_access(report_id, authorization)
+    row = db.get(models.Report, report_id)
+    if row is not None:
+        db.delete(row)
+    # тело отчёта (снимок) удаляем вместе с метой
+    snap = db.get(models.Snapshot, report_id)
+    if snap is not None:
+        db.delete(snap)
+    db.commit()
     return {"ok": True}
 
 

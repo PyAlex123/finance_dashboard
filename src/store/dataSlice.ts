@@ -294,7 +294,8 @@ const dataSlice = createSlice({
       state.items = state.items.filter((i) => i.form !== form)
       state.overrides = state.overrides.filter((o) => !codes.has(o.itemCode))
       state.cellValues = state.cellValues.filter((c) => !codes.has(c.itemCode))
-      if (form === 'pl') state.plPeriods = []
+      // Формы без журнала используют явные колонки-периоды (plPeriods). Сбрасываем их.
+      if (form === 'pl' || form === 'bs') state.plPeriods = []
     },
   },
 })

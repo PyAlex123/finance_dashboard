@@ -112,6 +112,30 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   align-items: center; justify-content: center; font: 700 12px 'Manrope', sans-serif; color: var(--forest);
 }
 
+/* Профиль сверху: фото Telegram + ник (фолбэк — инициал) */
+.profile { display: inline-flex; align-items: center; gap: 9px; }
+.profile__avatar { border-radius: 50%; object-fit: cover; flex-shrink: 0;
+  background: var(--mint); display: flex; align-items: center; justify-content: center; }
+.profile__avatar--initial { font: 700 13px 'Manrope', sans-serif; color: var(--forest); }
+.profile__name { font: 600 14px 'Manrope', sans-serif; color: var(--forest); white-space: nowrap; }
+
+/* Переключатель отчётов внутри модуля */
+.app__reportbar { display: flex; align-items: center; padding: 6px 28px 0; }
+.rswitch { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rswitch__label { font: 600 12px 'Manrope', sans-serif; color: var(--muted); }
+.rswitch__select { font: 600 13px 'Manrope', sans-serif; color: var(--forest);
+  border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; background: #fff; min-width: 160px; }
+.rswitch__error { color: var(--danger, #c0392b); font-size: 15px; cursor: help; }
+
+.report-empty { padding: 40px 28px; color: var(--muted); font: 500 15px 'Manrope', sans-serif; }
+
+/* Баланс: полоса-статус балансового уравнения и строка контроля */
+.bs__status { margin: 0 0 12px; padding: 9px 14px; border-radius: 10px; font: 600 13px 'Manrope', sans-serif; }
+.bs__status--ok { background: var(--mint, #e6f6ec); color: #1c7a44; border: 1px solid #bfe6cd; }
+.bs__status--bad { background: var(--warn-soft, #fbeecb); color: #8a5a12; border: 1px solid #ecdcb4; }
+.report__row--check td { font-weight: 700; border-top: 2px solid var(--border); }
+.bs__ok { color: #1c7a44; font-weight: 700; }
+
 .tabs {
   display: flex;
   gap: 4px;

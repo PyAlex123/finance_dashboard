@@ -15,6 +15,7 @@ import type { DataSnapshot } from '../domain/types'
 let activeRepo: Repository | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let subscribed = false
+let boundStore: AppStore | null = null
 
 function toStore(saved: DataSnapshot | null): DataSnapshot {
   // Старые снимки без счетов дополняем счетами по умолчанию; иначе — чистый лист.
@@ -24,6 +25,7 @@ function toStore(saved: DataSnapshot | null): DataSnapshot {
 // Единственная подписка на стор. Пишет в activeRepo; при null (нет входа/идёт
 // загрузка) — молчит, чтобы не затирать чужие данные.
 function ensureAutosave(store: AppStore): void {
+  boundStore = store
   if (subscribed) return
   subscribed = true
   store.subscribe(() => {
@@ -68,5 +70,23 @@ export function disconnectWorkspace(): void {
   if (saveTimer) {
     clearTimeout(saveTimer)
     saveTimer = null
+  }
+}
+
+/**
+ * Немедленно сохранить отложенные (дебаунс) изменения в текущий репозиторий, если
+ * они есть. Нужно перед сменой отчёта, чтобы последние правки не потерялись при
+ * переключении быстрее 400 мс.
+ */
+export async function flushPendingSave(): Promise<void> {
+  if (!saveTimer) return
+  clearTimeout(saveTimer)
+  saveTimer = null
+  const repo = activeRepo
+  if (!repo || !boundStore) return
+  try {
+    await repo.save(boundStore.getState().data)
+  } catch (e) {
+    console.warn('Ошибка сохранения:', e)
   }
 }

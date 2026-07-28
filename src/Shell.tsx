@@ -7,11 +7,13 @@ import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
 import DesignSystemView from './features/designsystem/DesignSystemView'
 import App from './App'
 import PlApp from './features/pnl/PlApp'
+import BsApp from './features/bs/BsApp'
 
 // Оболочка-маршрутизатор экранов: вход → выбор модуля → рабочая область.
 // Юзернейм запоминается (localStorage); модуль выбирается заново каждую сессию.
 export default function Shell() {
   const [username, setUser] = useState<string | null>(() => getUsername())
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined)
   const [module, setModule] = useState<ModuleId | null>(null)
   const [designSystem, setDesignSystem] = useState(false)
 
@@ -25,6 +27,7 @@ export default function Shell() {
         const session = await connectTelegram(telegramInitData())
         if (session && !cancelled) {
           setUser(session.name) // авто-вход: экран входа пропускаем
+          setPhotoUrl(session.photoUrl)
           return
         }
       }
@@ -45,6 +48,7 @@ export default function Shell() {
     disconnectBackend()
     clearUsername()
     setUser(null)
+    setPhotoUrl(undefined)
     setModule(null)
     setDesignSystem(false)
   }
@@ -55,6 +59,7 @@ export default function Shell() {
     return (
       <ModuleChooser
         username={username}
+        photoUrl={photoUrl}
         onPick={setModule}
         onLogout={logout}
         onOpenDesignSystem={() => setDesignSystem(true)}
@@ -62,7 +67,8 @@ export default function Shell() {
     )
   }
 
-  const workspaceProps = { username, onBack: () => setModule(null), onLogout: logout }
+  const workspaceProps = { username, photoUrl, onBack: () => setModule(null), onLogout: logout }
+  if (module === 'bs') return <BsApp {...workspaceProps} />
   if (module === 'pl') return <PlApp {...workspaceProps} />
   return <App {...workspaceProps} />
 }

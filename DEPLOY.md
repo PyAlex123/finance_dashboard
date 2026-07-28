@@ -33,8 +33,8 @@ cp .env.docker.example .env.docker
 ## 2. Запуск контейнера
 
 ```bash
-docker compose -p grammerce --env-file .env.docker up -d --build
-docker compose -p grammerce logs -f app      # логи
+docker compose --env-file .env.docker up -d --build
+docker compose --env-file .env.docker logs -f app      # логи
 curl -s http://127.0.0.1:8090/dashboards/api/health   # {"status":"ok",...}
 ```
 
@@ -61,7 +61,7 @@ location /dashboards/ {
 ## 4. Telegram-бот (@BotFather)
 
 1. `/newbot` → имя и username → получить **токен** → в `.env.docker` (`TELEGRAM_BOT_TOKEN`),
-   пересобрать: `docker compose -p grammerce --env-file .env.docker up -d --build`.
+   пересобрать: `docker compose --env-file .env.docker up -d --build`.
 2. `/setdescription` — описание бота.
 3. `/setmenubutton` → выбрать бота → текст «Открыть приложение» → URL
    `https://<домен>/dashboards/`. Одна кнопка, ведёт в Web App.
@@ -88,10 +88,10 @@ location /dashboards/ {
 
 ## Обслуживание
 
-- Обновление: `git pull && docker compose -p grammerce --env-file .env.docker up -d --build`.
+- Обновление: `git pull && docker compose --env-file .env.docker up -d --build`.
 - Бэкап данных (SQLite в томе):
   ```bash
-  docker compose -p grammerce cp app:/data/fin_reports.db ./backup-$(date +%F).db
+  docker compose --env-file .env.docker cp app:/data/fin_reports.db ./backup-$(date +%F).db
   ```
 - Разместить на корне домена (без подпути): `BASE_PATH=`, `VITE_BASE=/`, `VITE_API_URL=/`
   и `location /` в nginx.

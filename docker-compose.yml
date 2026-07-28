@@ -2,10 +2,18 @@
 # FastAPI отдаёт фронт + API, данные в SQLite (том app_data). Порт слушает только
 # на 127.0.0.1 — наружу проксирует существующий nginx (см. DEPLOY.md).
 #
-# Запуск: docker compose -p grammerce --env-file .env.docker up -d --build
+# Запуск: docker compose --env-file .env.docker up -d --build
+#
+# ВАЖНО: имя проекта, образа и контейнера ЖЁСТКО зафиксированы и уникальны, чтобы
+# исключить любое пересечение с другими compose-проектами на том же сервере
+# (совпадение имени проекта+сервиса даёт общий тег образа и ломает чужой стек).
+# НЕ передавайте флаг -p — он перебивает имя ниже.
+name: finance-dashboard
 
 services:
   app:
+    image: finance-dashboard-app:latest      # уникальный тег образа (не «*-app»)
+    container_name: finance-dashboard-app     # уникальное имя контейнера
     build:
       context: .
       args:

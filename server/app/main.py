@@ -6,10 +6,12 @@
 from __future__ import annotations
 
 import json
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -19,7 +21,8 @@ from .auth import (
     AuthError, display_name, jwt_decode, jwt_encode, validate_init_data, workspace_for,
 )
 from .config import (
-    CORS_ORIGINS, JWT_SECRET, JWT_TTL_SECONDS, TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE,
+    BASE_PATH, CORS_ORIGINS, JWT_SECRET, JWT_TTL_SECONDS, STATIC_DIR,
+    TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE,
 )
 from .db import Base, engine, get_session
 
@@ -41,8 +44,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Все API-роуты под префиксом BASE_PATH/api (для размещения на подпути /dashboards).
+# Пустой BASE_PATH → префикс /api, как раньше.
+api = APIRouter(prefix=f"{BASE_PATH}/api")
 
-@app.get("/api/health")
+
+@api.get("/health")
 def health() -> dict:
     return {"status": "ok", "telegramAuth": bool(TELEGRAM_BOT_TOKEN)}
 
@@ -53,7 +60,7 @@ class TelegramAuthIn(BaseModel):
     initData: str
 
 
-@app.post("/api/auth/telegram")
+@api.post("/auth/telegram")
 def auth_telegram(body: TelegramAuthIn) -> dict:
     if not TELEGRAM_BOT_TOKEN:
         raise HTTPException(status_code=503, detail="Telegram-логин не настроен на сервере")
@@ -84,7 +91,7 @@ def require_workspace_access(workspace: str, authorization: str | None = Header(
         raise HTTPException(status_code=403, detail="Чужое рабочее пространство")
 
 
-@app.get("/api/workspaces")
+@api.get("/workspaces")
 def list_workspaces(db: Session = Depends(get_session)) -> list[dict]:
     """Список пространств — удобно видеть, кто что тестирует в сети."""
     rows = db.execute(
@@ -95,7 +102,7 @@ def list_workspaces(db: Session = Depends(get_session)) -> list[dict]:
     return [{"workspace": w, "updatedAt": u.isoformat() if u else None} for w, u in rows]
 
 
-@app.get("/api/snapshot/{workspace}")
+@api.get("/snapshot/{workspace}")
 def get_snapshot(
     workspace: str,
     db: Session = Depends(get_session),
@@ -108,7 +115,7 @@ def get_snapshot(
     return {"data": json.loads(row.data), "updatedAt": row.updated_at.isoformat()}
 
 
-@app.put("/api/snapshot/{workspace}")
+@api.put("/snapshot/{workspace}")
 async def put_snapshot(
     workspace: str,
     request: Request,
@@ -129,7 +136,7 @@ async def put_snapshot(
     return {"ok": True}
 
 
-@app.delete("/api/snapshot/{workspace}")
+@api.delete("/snapshot/{workspace}")
 def delete_snapshot(
     workspace: str,
     db: Session = Depends(get_session),
@@ -140,3 +147,12 @@ def delete_snapshot(
         db.delete(row)
         db.commit()
     return {"ok": True}
+
+
+app.include_router(api)
+
+# Статика собранного фронта под тем же префиксом (один контейнер: FastAPI отдаёт и
+# SPA, и API). Монтируется ПОСЛЕ API-роутов, чтобы они имели приоритет. html=True —
+# отдаёт index.html на запрос каталога. STATIC_DIR пуст → режим «только API».
+if STATIC_DIR and os.path.isdir(STATIC_DIR):
+    app.mount(BASE_PATH or "/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

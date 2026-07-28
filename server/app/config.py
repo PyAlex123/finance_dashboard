@@ -27,6 +27,14 @@ CORS_ORIGINS: list[str] = [
     o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()
 ]
 
+# Префикс пути, под которым обслуживается приложение (для размещения на подпути,
+# напр. BASE_PATH=/dashboards → сайт на grammerce.io/dashboards). Пусто — корень.
+BASE_PATH: str = os.getenv("BASE_PATH", "").rstrip("/")
+
+# Папка со статикой собранного фронта (в Docker-образе). Пусто — статику не отдаём
+# (режим «только API», как раньше при отдельном web-контейнере).
+STATIC_DIR: str = os.getenv("STATIC_DIR", "")
+
 # --- Telegram Web App (Фаза 5) ---
 # Токен бота от @BotFather. Пусто — вход через Telegram выключен (работает обычный
 # вход по имени, пространство = имя в пути).

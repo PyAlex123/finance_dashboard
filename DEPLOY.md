@@ -1,104 +1,105 @@
-# Развёртывание (Фаза 5) — Docker + Telegram Web App
+# Развёртывание как Telegram Web App на подпути
 
-Прод-сборка одним `docker compose`: **MySQL 8 + FastAPI + nginx(SPA)**, опционально
-**Caddy** для HTTPS. Вход — обычный (по имени) или через **Telegram**.
+Один контейнер: **FastAPI отдаёт собранный фронт + API + SQLite**. Ставится на подпуть
+существующего домена (напр. `https://grammerce.io/dashboards`), за уже работающим
+**nginx** с TLS. Вход — через Telegram (у каждого своя учётка по Telegram id).
 
-> ⚠️ Имя папки проекта содержит кириллицу, из-за чего Docker не может вывести имя
-> проекта. Поэтому во всех командах указывается `-p finreports`.
+```
+Telegram → кнопка меню → https://<домен>/dashboards/
+  nginx (TLS)  location /dashboards/ → 127.0.0.1:8090
+    контейнер app (FastAPI):
+      /dashboards/          → SPA (StaticFiles)
+      /dashboards/api/...   → API (snapshot, auth/telegram, health)
+      SQLite: /data/fin_reports.db (том app_data)
+```
+Подпуть согласован end-to-end: `BASE_PATH`/`VITE_BASE`/`VITE_API_URL`. Префикс в nginx
+**не срезается** (`proxy_pass` без завершающего `/`).
 
 ---
 
-## 1. Быстрый старт (HTTP, локально или в сети)
+## 1. Репозиторий → сервер
 
 ```bash
-cp .env.docker.example .env.docker      # при желании поправьте пароли/порт
-docker compose -p finreports --env-file .env.docker up -d --build
+# на сервере
+sudo mkdir -p /opt/grammerce-dashboards && sudo chown $USER: /opt/grammerce-dashboards
+cd /opt/grammerce-dashboards
+git clone <repo-url> .
+cp .env.docker.example .env.docker
 ```
 
-Открыть: **http://localhost:8080** (порт задаётся `WEB_PORT`).
+Заполнить `.env.docker` (см. таблицу ниже). Минимум — `TELEGRAM_BOT_TOKEN` и
+`JWT_SECRET` (`openssl rand -hex 32`). Файл в `.gitignore` — секреты не в репозитории.
 
-Что поднимется:
-- `db` — MySQL 8 (данные в томе `db_data`, переживают перезапуск);
-- `api` — FastAPI; при старте применяет миграции Alembic и слушает `:8000` внутри сети;
-- `web` — nginx: раздаёт собранный фронт и проксирует `/api` на `api`
-  (фронт и API на одном origin — CORS не нужен).
+## 2. Запуск контейнера
 
-Остановить: `docker compose -p finreports down` (данные останутся; `-v` удалит и тома).
-
-Логи: `docker compose -p finreports logs -f api`
-
----
-
-## 2. HTTPS через Caddy (нужен домен)
-
-Caddy сам получает и продлевает сертификат Let's Encrypt. Требуется реальный
-домен, указывающий A/AAAA-записью на сервер, и открытые порты 80/443.
-
-В `.env.docker`:
-```
-DOMAIN=finance.example.com
-```
-Запуск с профилем `tls`:
 ```bash
-docker compose -p finreports --env-file .env.docker --profile tls up -d --build
+docker compose -p grammerce --env-file .env.docker up -d --build
+docker compose -p grammerce logs -f app      # логи
+curl -s http://127.0.0.1:8090/dashboards/api/health   # {"status":"ok",...}
 ```
-Сайт будет на `https://finance.example.com` (Caddy проксирует на `web`).
+
+Контейнер слушает `127.0.0.1:8090` (наружу закрыт — проксирует nginx).
+
+## 3. nginx: маршрут /dashboards
+
+В `/etc/nginx/sites-available/<домен>`, внутри блока `server { listen 443 ssl; ... }`
+добавить (существующий `location /` не трогать):
+
+```nginx
+location = /dashboards { return 308 /dashboards/; }
+location /dashboards/ {
+    proxy_pass http://127.0.0.1:8090;   # без завершающего слэша — префикс /dashboards сохраняется
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+Применить: `sudo nginx -t && sudo systemctl reload nginx`.
+Проверить: `curl -I https://<домен>/dashboards/` → 200.
+
+## 4. Telegram-бот (@BotFather)
+
+1. `/newbot` → имя и username → получить **токен** → в `.env.docker` (`TELEGRAM_BOT_TOKEN`),
+   пересобрать: `docker compose -p grammerce --env-file .env.docker up -d --build`.
+2. `/setdescription` — описание бота.
+3. `/setmenubutton` → выбрать бота → текст «Открыть приложение» → URL
+   `https://<домен>/dashboards/`. Одна кнопка, ведёт в Web App.
+
+## 5. Проверка на реальном примере
+
+- Открыть бота в Telegram → кнопка меню → грузится `…/dashboards`, вход автоматический.
+- У пользователя своя учётка (`tg:<id>`, ник виден), данные сохраняются на сервере.
+- Второй Telegram-аккаунт → отдельные данные. Проверить мобильную вёрстку и офлайн.
 
 ---
 
-## 3. Вход через Telegram Web App
+## Переменные `.env.docker`
 
-Приложение работает и без Telegram (обычный вход по имени). Чтобы включить вход
-через Telegram:
-
-1. У [@BotFather](https://t.me/BotFather) создайте бота → получите **токен**.
-2. Задайте боту Web App URL (кнопка меню):
-   `/setmenubutton` (или через `/newapp`) → укажите публичный `https://`-адрес
-   сайта (из шага 2 — Telegram требует HTTPS).
-3. В `.env.docker`:
-   ```
-   TELEGRAM_BOT_TOKEN=123456:ABC...            # токен от BotFather
-   JWT_SECRET=<длинная случайная строка>       # обязательно смените
-   ```
-4. Перезапустите: `docker compose -p finreports --env-file .env.docker --profile tls up -d --build`.
-
-Как это работает:
-- фронт внутри Telegram берёт подписанный `initData` и шлёт на `POST /api/auth/telegram`;
-- бэкенд проверяет подпись (HMAC-SHA256 с токеном бота) и выдаёт **свой JWT**;
-- запросы к данным идут с `Authorization: Bearer <JWT>`; пространство пользователя —
-  `tg:<telegram-id>`, доступ к чужому пространству отклоняется (401/403);
-- вне Telegram и при пустом `TELEGRAM_BOT_TOKEN` — прежний открытый режим по имени.
-
----
-
-## 4. Переменные (.env.docker)
-
-| Переменная | Назначение | По умолчанию |
+| Переменная | Назначение | Пример |
 |---|---|---|
-| `WEB_PORT` | HTTP-порт сайта | `8080` |
-| `VITE_API_URL` | база API для сборки фронта (`/` = тот же origin) | `/` |
-| `DB_PASSWORD` / `DB_ROOT_PASSWORD` | пароли MySQL | `finpass` / `rootpass` |
-| `CORS_ORIGINS` | разрешённые источники API | `*` |
-| `TELEGRAM_BOT_TOKEN` | токен бота (пусто = вход через Telegram выкл.) | — |
-| `JWT_SECRET` | секрет подписи JWT | `change-me-in-production` |
-| `DOMAIN` | домен для Caddy/TLS | `localhost` |
+| `BASE_PATH` | подпуть на бэкенде | `/dashboards` |
+| `VITE_BASE` | база ассетов фронта (со слэшем) | `/dashboards/` |
+| `VITE_API_URL` | база API на фронте | `/dashboards` |
+| `APP_PORT` | локальный порт контейнера | `8090` |
+| `DATABASE_URL` | SQLite в томе | `sqlite:////data/fin_reports.db` |
+| `TELEGRAM_BOT_TOKEN` | токен бота (пусто = вход выкл.) | `123:ABC…` |
+| `JWT_SECRET` | секрет JWT (сменить!) | `openssl rand -hex 32` |
 
-Файл `.env.docker` в `.gitignore` — секреты не попадают в репозиторий.
+## Обслуживание
 
----
-
-## 5. Обновление и обслуживание
-
-- Обновить после изменений кода: повторить `up -d --build`.
-- Миграции БД: применяются автоматически при старте `api` (`alembic upgrade head`).
-- Бэкап MySQL:
+- Обновление: `git pull && docker compose -p grammerce --env-file .env.docker up -d --build`.
+- Бэкап данных (SQLite в томе):
   ```bash
-  docker compose -p finreports exec db mysqldump -ufin -p"$DB_PASSWORD" fin_reports > backup.sql
+  docker compose -p grammerce cp app:/data/fin_reports.db ./backup-$(date +%F).db
   ```
+- Разместить на корне домена (без подпути): `BASE_PATH=`, `VITE_BASE=/`, `VITE_API_URL=/`
+  и `location /` в nginx.
 
----
+## На будущее (вне текущего объёма)
+Бот-процесс (aiogram) для кнопки «Открыть с компьютера» и ссылки на вход — отдельный
+сервис в этом же `docker-compose.yml`, использующий тот же `TELEGRAM_BOT_TOKEN`.
 
 ## Связанные документы
-- `RUNNING.md` — запуск в dev-режиме и доступ в одной Wi-Fi сети (без Docker).
+- `RUNNING.md` — dev-запуск и доступ в одной Wi-Fi сети (без Docker).
 - `server/README.md` — API-эндпоинты и запуск бэкенда напрямую.
-- `ARCHITECTURE.md` — фазы и принципы (Фаза 5 — этот документ).

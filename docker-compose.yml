@@ -1,65 +1,27 @@
-# Фаза 5 — прод-сборка: MySQL 8 + FastAPI + nginx(SPA). Caddy для TLS — по
-# профилю `tls` (нужен домен). Запуск: docker compose --env-file .env.docker up -d
-# (см. DEPLOY.md). Переменные — из .env.docker (пример: .env.docker.example).
+# Прод-деплой на подпуть (напр. grammerce.io/dashboards): ОДИН контейнер —
+# FastAPI отдаёт фронт + API, данные в SQLite (том app_data). Порт слушает только
+# на 127.0.0.1 — наружу проксирует существующий nginx (см. DEPLOY.md).
+#
+# Запуск: docker compose -p grammerce --env-file .env.docker up -d --build
 
 services:
-  db:
-    image: mysql:8
-    environment:
-      MYSQL_DATABASE: fin_reports
-      MYSQL_USER: fin
-      MYSQL_PASSWORD: ${DB_PASSWORD:-finpass}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpass}
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD:-rootpass}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-
-  api:
-    build: ./server
-    environment:
-      DATABASE_URL: mysql+pymysql://fin:${DB_PASSWORD:-finpass}@db:3306/fin_reports
-      CORS_ORIGINS: ${CORS_ORIGINS:-*}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-
-  web:
+  app:
     build:
       context: .
       args:
-        VITE_API_URL: ${VITE_API_URL:-/}
-    ports:
-      - "${WEB_PORT:-8080}:80"
-    depends_on:
-      - api
-    restart: unless-stopped
-
-  # TLS-фронт (Let's Encrypt авто). Включается профилем: --profile tls
-  caddy:
-    image: caddy:2-alpine
-    profiles: ["tls"]
-    ports:
-      - "80:80"
-      - "443:443"
+        VITE_BASE: ${VITE_BASE:-/dashboards/}
+        VITE_API_URL: ${VITE_API_URL:-/dashboards}
     environment:
-      DOMAIN: ${DOMAIN:-localhost}
+      BASE_PATH: ${BASE_PATH:-/dashboards}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/fin_reports.db}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - web
+      - app_data:/data
+    ports:
+      - "127.0.0.1:${APP_PORT:-8090}:8000"
     restart: unless-stopped
 
 volumes:
-  db_data:
-  caddy_data:
-  caddy_config:
+  app_data:

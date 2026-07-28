@@ -17,12 +17,40 @@ Telegram → кнопка меню → https://<домен>/dashboards/
 
 ---
 
-## 1. Репозиторий → сервер
+## 0. ФАКТЫ ПРОД-СЕРВЕРА (grammerce.io) — не забывать
+
+| Что | Значение |
+|---|---|
+| Домен / подпуть | `https://grammerce.io/dashboards/` |
+| **Папка проекта на сервере** | **`/opt/finance_dashboard`** |
+| Ветка, которую тянет сервер | `main` (`origin` = github.com/PyAlex123/finance_dashboard) |
+| Порт контейнера (только localhost) | `127.0.0.1:8090` |
+| Имя контейнера / проекта / образа | `finance-dashboard-app` / `finance-dashboard` / `finance-dashboard-app` |
+| Reverse-proxy | nginx, конфиг `/etc/nginx/sites-available/grammerce.io` (`location /dashboards/`) |
+| Бот | @financePro (кнопка меню Web App в @BotFather) |
+
+**Обновить прод (стандартная последовательность):**
+```bash
+cd /opt/finance_dashboard
+git pull origin main
+docker compose --env-file .env.docker up -d --build     # из этой папки, БЕЗ -p
+docker compose --env-file .env.docker logs -f app        # логи (Ctrl+C для выхода)
+curl -s http://127.0.0.1:8090/dashboards/api/health      # {"status":"ok","telegramAuth":true}
+```
+
+**НЕЛЬЗЯ (иначе ломается ЧУЖОЙ сайт на этом же сервере):**
+- не использовать флаг `-p` у `docker compose` (перебьёт имя проекта);
+- не делать `docker compose down` на нашем проекте — только `up -d --build`;
+- не трогать `/var/www/grammerce` и контейнеры `retail_saas_*` (это другой проект на :8005).
+
+---
+
+## 1. Репозиторий → сервер (первичная установка — уже сделано)
 
 ```bash
-# на сервере
-sudo mkdir -p /opt/grammerce-dashboards && sudo chown $USER: /opt/grammerce-dashboards
-cd /opt/grammerce-dashboards
+# на сервере (папка уже создана: /opt/finance_dashboard)
+sudo mkdir -p /opt/finance_dashboard && sudo chown $USER: /opt/finance_dashboard
+cd /opt/finance_dashboard
 git clone <repo-url> .
 cp .env.docker.example .env.docker
 ```

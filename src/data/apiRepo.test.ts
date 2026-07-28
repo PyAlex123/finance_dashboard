@@ -65,4 +65,33 @@ describe('apiRepo', () => {
     const repo = createApiRepo(BASE, WS)
     await expect(repo.save(buildEmptySnapshot())).rejects.toThrow(/500/)
   })
+
+  it('с токеном добавляет Authorization: Bearer (для Telegram-пространств)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        lastRequest = { url, init }
+        return new Response(null, { status: 200 })
+      }),
+    )
+    const repo = createApiRepo(BASE, 'tg:7', 'jwt-token-123')
+    await repo.save(buildEmptySnapshot())
+    const headers = lastRequest.init?.headers as Record<string, string>
+    expect(headers.Authorization).toBe('Bearer jwt-token-123')
+    expect(headers['Content-Type']).toBe('application/json')
+  })
+
+  it('без токена заголовка Authorization нет', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        lastRequest = { url, init }
+        return new Response(null, { status: 200 })
+      }),
+    )
+    const repo = createApiRepo(BASE, WS)
+    await repo.save(buildEmptySnapshot())
+    const headers = lastRequest.init?.headers as Record<string, string>
+    expect(headers.Authorization).toBeUndefined()
+  })
 })

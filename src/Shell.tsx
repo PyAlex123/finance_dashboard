@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getUsername, setUsername as persistUsername, clearUsername } from './features/session/session'
-import { connectBackend, disconnectBackend } from './data/backend'
+import { connectBackend, connectTelegram, disconnectBackend } from './data/backend'
+import { isTelegram, initTelegramUI, telegramInitData } from './features/session/telegram'
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
 import DesignSystemView from './features/designsystem/DesignSystemView'
@@ -14,10 +15,23 @@ export default function Shell() {
   const [module, setModule] = useState<ModuleId | null>(null)
   const [designSystem, setDesignSystem] = useState(false)
 
-  // Серверный режим: подключить пространство запомненного пользователя при старте.
-  // Локальный режим — no-op (данные уже загружены в main.tsx).
+  // Старт: внутри Telegram — авто-вход (initData → JWT), иначе подключаем
+  // запомненного пользователя (серверный режим). Локальный режим — no-op.
   useEffect(() => {
-    if (username) void connectBackend(username)
+    let cancelled = false
+    async function boot() {
+      if (isTelegram()) {
+        initTelegramUI()
+        const session = await connectTelegram(telegramInitData())
+        if (session && !cancelled) {
+          setUser(session.name) // авто-вход: экран входа пропускаем
+          return
+        }
+      }
+      if (username && !cancelled) void connectBackend(username)
+    }
+    void boot()
+    return () => { cancelled = true }
     // один раз при монтировании; последующие входы/выходы обрабатывают login/logout
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

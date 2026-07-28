@@ -14,11 +14,17 @@ function endpoint(baseUrl: string, workspace: string): string {
   return `${base}/api/snapshot/${encodeURIComponent(workspace)}`
 }
 
-export function createApiRepo(baseUrl: string, workspace: string): Repository {
+/**
+ * @param token — JWT для Telegram-пространств (tg:*): уходит в Authorization.
+ *   Для обычных имён (локально/LAN) не нужен.
+ */
+export function createApiRepo(baseUrl: string, workspace: string, token?: string): Repository {
   const url = endpoint(baseUrl, workspace)
+  const headers = (extra?: Record<string, string>): Record<string, string> =>
+    token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra }
   return {
     async load() {
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: headers() })
       if (res.status === 404) return null
       if (!res.ok) throw new Error(`Сервер вернул ${res.status} при загрузке`)
       const text = await res.text()
@@ -31,13 +37,13 @@ export function createApiRepo(baseUrl: string, workspace: string): Repository {
       const body = JSON.stringify({ data: snapshot }, bigintReplacer)
       const res = await fetch(url, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers({ 'Content-Type': 'application/json' }),
         body,
       })
       if (!res.ok) throw new Error(`Сервер вернул ${res.status} при сохранении`)
     },
     async clear() {
-      const res = await fetch(url, { method: 'DELETE' })
+      const res = await fetch(url, { method: 'DELETE', headers: headers() })
       if (!res.ok && res.status !== 404) throw new Error(`Сервер вернул ${res.status} при очистке`)
     },
   }

@@ -25,6 +25,35 @@ export async function connectBackend(username: string): Promise<void> {
   await connectWorkspace(store, createResilientRepo(api, mirror))
 }
 
+export interface TelegramSession {
+  name: string
+  workspace: string
+}
+
+/**
+ * Вход через Telegram Web App: обменять initData на JWT, подключить пространство
+ * пользователя (tg:<id>) с токеном. Возвращает null, если не серверный режим,
+ * нет initData или сервер отклонил (тогда UI показывает обычный вход).
+ */
+export async function connectTelegram(initData: string): Promise<TelegramSession | null> {
+  if (!REMOTE || !initData) return null
+  try {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/telegram`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData }),
+    })
+    if (!res.ok) return null
+    const { token, workspace, name } = (await res.json()) as { token: string; workspace: string; name: string }
+    const api = createApiRepo(API_URL, workspace, token)
+    const mirror = createIdbRepo(`snapshot:${workspace}`)
+    await connectWorkspace(store, createResilientRepo(api, mirror))
+    return { name, workspace }
+  } catch {
+    return null
+  }
+}
+
 /** Выход: в серверном режиме прекратить сохранять. */
 export function disconnectBackend(): void {
   if (!REMOTE) return

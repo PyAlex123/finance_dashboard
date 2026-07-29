@@ -78,6 +78,8 @@ export interface AggRule {
   categoryCode?: string
   /** Ограничение по коду счёта. */
   accountCode?: string
+  /** Только операции БЕЗ категории (для строки «Без категории» в авто-отчёте). */
+  noCategory?: boolean
 }
 
 export interface Item {
@@ -157,6 +159,11 @@ export interface DataSnapshot {
   plPeriods: PeriodKey[]
   /** Счета по умолчанию уже создавались (чтобы не возвращать удалённые пользователем). */
   defaultsSeeded?: boolean
+  /**
+   * Отчёт ДДС строится автоматически из категорий/счетов (по умолчанию true).
+   * false — ручной режим («Продвинутое»): отчёт берётся из статей шаблона (items, form='cf').
+   */
+  cfAuto?: boolean
   projects: Project[]
   scenarios: Scenario[]
 }

@@ -62,12 +62,13 @@ describe('Shell — поток экранов', () => {
     expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument()
   })
 
-  it('пустой ДДС показывает подсказку пустого отчёта', () => {
+  it('пустой ДДС: авто-отчёт показывает раздел остатков по счетам', () => {
     renderShell(true)
     fireEvent.change(screen.getByLabelText('Юзернейм'), { target: { value: 'Ю' } })
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
     fireEvent.click(screen.getByRole('button', { name: /ДДС/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Отчёт ДДС' }))
-    expect(screen.getByText('Отчёт пуст')).toBeInTheDocument()
+    // отчёт формируется автоматически: даже без операций есть остатки по счетам
+    expect(screen.getByText('Остатки по счетам')).toBeInTheDocument()
   })
 })

@@ -114,6 +114,7 @@ export function aggValue(ctx: AggContext, rule: AggRule, period: PeriodKey): Mon
     if (rule.measure === 'out' && meta.type !== 'expense') continue
     if (meta.period !== period) continue
     if (rule.categoryCode && meta.categoryCode !== rule.categoryCode) continue
+    if (rule.noCategory && meta.categoryCode !== null) continue
 
     for (const line of ctx.linesByOp.get(opId) ?? []) {
       if (rule.accountCode && ctx.accCodeById.get(line.accountId) !== rule.accountCode) continue
@@ -178,6 +179,7 @@ export function listAggOperations(
       if (rule.measure === 'out' && meta.type !== 'expense') continue
       if (meta.period !== period) continue
       if (rule.categoryCode && meta.categoryCode !== rule.categoryCode) continue
+      if (rule.noCategory && meta.categoryCode !== null) continue
     }
 
     let amount = 0n

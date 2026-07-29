@@ -22,10 +22,10 @@ describe('дашборд — реальные KPI', () => {
     expect(dash.hasData).toBe(true)
     expect(dash.kpis.result).toBe(dash.kpis.totalIn - dash.kpis.totalOut)
 
-    // сверка с отчётом: «Общий приход» ИТОГО = totalIn, «Общий расход» ИТОГО = totalOut
+    // сверка с авто-отчётом: «ИТОГО поступления» = totalIn, «ИТОГО списания» = totalOut
     const report = selectReport(store.getState())
-    const inRow = report.rows.find((r) => r.code === 'v_total_in')!
-    const outRow = report.rows.find((r) => r.code === 'v_total_out')!
+    const inRow = report.rows.find((r) => r.code === 'auto_in_total')!
+    const outRow = report.rows.find((r) => r.code === 'auto_out_total')!
     expect(rowTotal(inRow)).toBe(dash.kpis.totalIn)
     expect(rowTotal(outRow)).toBe(dash.kpis.totalOut)
   })

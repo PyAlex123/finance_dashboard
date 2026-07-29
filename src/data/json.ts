@@ -54,5 +54,7 @@ export function normalizeSnapshot(data: DataSnapshot): DataSnapshot {
     plPeriods: data.plPeriods ?? [],
     projects: data.projects ?? [],
     scenarios: data.scenarios ?? [],
+    // По умолчанию отчёт ДДС автоматический (старые снимки без флага — тоже).
+    cfAuto: data.cfAuto ?? true,
   }
 }

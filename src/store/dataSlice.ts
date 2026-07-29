@@ -297,6 +297,11 @@ const dataSlice = createSlice({
       // Формы без журнала используют явные колонки-периоды (plPeriods). Сбрасываем их.
       if (form === 'pl' || form === 'bs') state.plPeriods = []
     },
+
+    /** Режим отчёта ДДС: автоматический (true) или ручной шаблон (false). */
+    setCfAuto(state, action: PayloadAction<boolean>) {
+      state.cfAuto = action.payload
+    },
   },
 })
 
@@ -329,6 +334,7 @@ export const {
   removePeriod,
   seedItems,
   clearForm,
+  setCfAuto,
 } = dataSlice.actions
 
 export default dataSlice.reducer

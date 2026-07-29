@@ -34,8 +34,8 @@ describe('панель drill-down в отчёте', () => {
       </Provider>,
     )
 
-    // «Общий приход» — агрегатная строка; её ячейки кликабельны (класс --drill)
-    const row = screen.getByText('Общий приход').closest('tr') as HTMLElement
+    // «Продажа курсов» — агрегатная строка авто-отчёта; её ячейки кликабельны (--drill)
+    const row = screen.getByText('Продажа курсов').closest('tr') as HTMLElement
     const drillCell = row.querySelector('.report__num--drill') as HTMLElement
     expect(drillCell).toBeTruthy()
 
@@ -44,7 +44,7 @@ describe('панель drill-down в отчёте', () => {
     // выехала панель с заголовком статьи и подписью разбивки
     expect(screen.getByText(/Из чего сложилось/)).toBeInTheDocument()
     const panel = document.querySelector('.drill') as HTMLElement
-    expect(within(panel).getByText('Общий приход')).toBeInTheDocument()
+    expect(within(panel).getByText('Продажа курсов')).toBeInTheDocument()
     // есть хотя бы одна операция в списке
     expect(panel.querySelectorAll('.drill__op').length).toBeGreaterThan(0)
   })

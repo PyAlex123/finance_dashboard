@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectReport, selectFormulaByCode } from '../../store/reportSelectors'
+import { selectReport, selectFormulaByCode, selectCfAggRuleByCode } from '../../store/reportSelectors'
 import { selectData } from '../../store/selectors'
 import { setOverride, clearOverride } from '../../store/dataSlice'
 import { rowTotal, type ReportRow } from '../../engine/report'
 import { formatPeriod } from '../../engine/periods'
 import { formatMoney, type Money } from '../../domain/money'
 import { listAggOperations } from '../../engine/aggregate'
-import type { AggRule, PeriodKey } from '../../domain/types'
+import type { PeriodKey } from '../../domain/types'
 import ChecksPanel from './ChecksPanel'
 import DrillDownPanel, { type DrillData } from './DrillDownPanel'
 
@@ -62,12 +62,8 @@ export default function ReportView() {
   const [drill, setDrill] = useState<DrillData | null>(null)
 
   // Код статьи → правило агрегата (только agg-строки кликабельны для drill-down).
-  const aggRuleByCode = useMemo(
-    () => new Map<string, AggRule>(
-      data.items.filter((it) => it.kind === 'agg' && it.aggRule).map((it) => [it.code, it.aggRule!]),
-    ),
-    [data.items],
-  )
+  // Берём действующие статьи (авто из данных или ручной шаблон).
+  const aggRuleByCode = useAppSelector(selectCfAggRuleByCode)
 
   function openDrill(row: ReportRow, period: PeriodKey | 'total') {
     const rule = aggRuleByCode.get(row.code)
@@ -87,10 +83,11 @@ export default function ReportView() {
     return (
       <div className="report-layout">
         <div className="report empty-state">
-          <div className="empty-state__title">Отчёт пуст</div>
+          <div className="empty-state__title">Пока нет данных</div>
           <p className="empty-state__text">
-            Добавьте статьи во вкладке «Шаблон», счета и категории — в «Справочниках»,
-            операции — в «Журнале». Или нажмите «Загрузить пример» вверху.
+            Отчёт формируется автоматически. Заведите счета и категории в «Справочниках»
+            и внесите операции в «Журнале» — строки появятся сами. Или нажмите
+            «Загрузить пример» вверху.
           </p>
         </div>
         <ChecksPanel />

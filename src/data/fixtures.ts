@@ -166,6 +166,7 @@ export function buildFixtureSnapshot(): DataSnapshot {
     templateVersions: [],
     cellValues: [],
     plPeriods: [],
+    cfAuto: true,
     projects: structuredClone(projects),
     scenarios: structuredClone(scenarios),
   }
@@ -203,6 +204,7 @@ export function buildEmptySnapshot(): DataSnapshot {
     templateVersions: [],
     cellValues: [],
     plPeriods: [],
+    cfAuto: true,
     projects: [],
     scenarios: [],
   }

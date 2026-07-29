@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { selectItems, selectCategories, selectActiveAccounts } from '../../store/selectors'
-import { selectReport, selectPlReport } from '../../store/reportSelectors'
+import { selectItems, selectCategories, selectActiveAccounts, selectData } from '../../store/selectors'
+import { selectReport, selectPlReport, selectCfAuto } from '../../store/reportSelectors'
 import {
-  upsertItem, deleteItem, moveItem,
+  upsertItem, deleteItem, moveItem, seedItems, setCfAuto,
   saveTemplateVersion, restoreTemplateVersion, deleteTemplateVersion,
 } from '../../store/dataSlice'
+import { buildAutoCfItems } from '../../engine/autoCf'
 import { parseFormula } from '../../engine/formula/parser'
 import type { Account, AggRule, Category, Item, ItemKind, ReportForm, TemplateVersion } from '../../domain/types'
 import type { RootState } from '../../store'
@@ -41,7 +42,48 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
   const cfReport = useAppSelector(selectReport)
   const plReport = useAppSelector(selectPlReport)
   const versions = useAppSelector(selectVersions)
+  const cfAuto = useAppSelector(selectCfAuto)
+  const data = useAppSelector(selectData)
   const [versionName, setVersionName] = useState('')
+
+  // ДДС в авто-режиме: шаблон не редактируется — отчёт строится из данных.
+  // Предлагаем перейти в ручной режим («Продвинутое»), материализуя авто-структуру.
+  if (form === 'cf' && cfAuto) {
+    return (
+      <div className="tpl">
+        <div className="tpl__pane">
+          <div className="tpl__header">
+            <div>
+              <div className="tpl__eyebrow">Структура отчёта</div>
+              <h2 className="tpl__title">Отчёт ДДС — автоматический</h2>
+            </div>
+          </div>
+          <div className="tpl__autobox">
+            <p>
+              Отчёт ДДС формируется <b>автоматически</b> из ваших категорий и счетов:
+              «Поступления» — по доходным категориям, «Списания» — по расходным,
+              «Остатки по счетам», плюс итоги и чистый поток. Ничего настраивать не нужно —
+              просто вносите операции в «Журнале».
+            </p>
+            <p className="tpl__muted">
+              Продвинутое: можно перейти к ручной настройке структуры (переименовать,
+              переставить, добавить свои строки и формулы). Текущая авто-структура станет
+              отправной точкой.
+            </p>
+            <button
+              className="btn btn--primary btn--small"
+              onClick={() => {
+                dispatch(seedItems({ items: buildAutoCfItems(data) }))
+                dispatch(setCfAuto(false))
+              }}
+            >
+              Настроить вручную
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const items = allItems.filter((i) => i.form === form)
   const report = form === 'pl' ? plReport : cfReport
@@ -86,9 +128,20 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
             <div className="tpl__eyebrow">Структура отчёта</div>
             <h2 className="tpl__title">Редактор шаблона {form === 'pl' ? 'P&L' : 'ДДС'}</h2>
           </div>
-          <button className="btn btn--primary btn--small" onClick={() => addItem(null)}>
-            + Статья верхнего уровня
-          </button>
+          <div className="tpl__headbtns">
+            {form === 'cf' && (
+              <button
+                className="btn btn--small"
+                title="Вернуть автоматический отчёт из категорий и счетов"
+                onClick={() => dispatch(setCfAuto(true))}
+              >
+                ← Автоматически
+              </button>
+            )}
+            <button className="btn btn--primary btn--small" onClick={() => addItem(null)}>
+              + Статья верхнего уровня
+            </button>
+          </div>
         </div>
         {report.error && <div className="tpl__error">⚠ {report.error}</div>}
         <div className="tpl__main">

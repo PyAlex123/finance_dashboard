@@ -4,13 +4,38 @@
 import { createSelector } from '@reduxjs/toolkit'
 import { selectData, selectActiveAccounts, selectPeriods } from './selectors'
 import { buildReport } from '../engine/report'
+import { buildAutoCfItems } from '../engine/autoCf'
 import { runChecks, allChecksOk } from '../engine/checks'
 import { buildAggContext, aggValue } from '../engine/aggregate'
 import type { Money } from '../domain/money'
-import type { Currency } from '../domain/types'
+import type { AggRule, Currency, Item } from '../domain/types'
 
-// ДДС (форма cf)
-export const selectReport = createSelector([selectData], (data) => buildReport(data, { form: 'cf' }))
+// ДДС (форма cf). По умолчанию отчёт АВТОМАТИЧЕСКИЙ — статьи синтезируются из
+// категорий/счетов (buildAutoCfItems). Ручной режим (cfAuto === false) берёт
+// статьи из шаблона (data.items, form='cf'). В обоих случаях считает один движок.
+export const selectCfAuto = createSelector([selectData], (data) => data.cfAuto !== false)
+
+/** Действующие статьи ДДС: авто (из данных) или ручные (из шаблона). */
+export const selectEffectiveCfItems = createSelector(
+  [selectData, selectCfAuto],
+  (data, auto): Item[] => (auto ? buildAutoCfItems(data) : data.items.filter((it) => it.form === 'cf')),
+)
+
+export const selectReport = createSelector(
+  [selectData, selectEffectiveCfItems],
+  (data, cfItems) => buildReport(
+    { ...data, items: [...data.items.filter((it) => it.form !== 'cf'), ...cfItems] },
+    { form: 'cf' },
+  ),
+)
+
+/** Код статьи → правило агрегата (для drill-down) по действующим статьям ДДС. */
+export const selectCfAggRuleByCode = createSelector([selectEffectiveCfItems], (items) =>
+  new Map<string, AggRule>(
+    items.filter((it) => it.kind === 'agg' && it.aggRule).map((it) => [it.code, it.aggRule!]),
+  ),
+)
+
 export const selectChecks = createSelector([selectData], (data) => runChecks(data, 'cf'))
 export const selectChecksOk = createSelector([selectChecks], (checks) => allChecksOk(checks))
 

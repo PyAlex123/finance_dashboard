@@ -47,6 +47,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def no_cache_html(request: Request, call_next):
+    """SPA-оболочку (index.html) НЕ кэшируем: она ссылается на текущие хэши бандла,
+    иначе Telegram/браузер держит старую страницу и грузит устаревший JS (карточки
+    «Скоро», дизайн-система и т.п. «залипают»). Хэшированные ассеты (JS/CSS) —
+    иммутабельны и кэшируются как обычно (их content-type не text/html)."""
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # Все API-роуты под префиксом BASE_PATH/api (для размещения на подпути /dashboards).
 # Пустой BASE_PATH → префикс /api, как раньше.
 api = APIRouter(prefix=f"{BASE_PATH}/api")

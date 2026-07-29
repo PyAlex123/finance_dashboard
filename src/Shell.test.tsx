@@ -34,13 +34,14 @@ describe('Shell — поток экранов', () => {
     expect(screen.getByText(/Здравствуйте, Алекс/)).toBeInTheDocument()
   })
 
-  it('P&L — «Скоро» и неактивен; Баланс активен', () => {
+  it('активен только ДДС; P&L и Баланс — «Скоро» и неактивны', () => {
     renderShell()
     fireEvent.change(screen.getByLabelText('Юзернейм'), { target: { value: 'Ю' } })
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }))
-    expect(screen.getAllByText('Скоро')).toHaveLength(1)
+    expect(screen.getAllByText('Скоро')).toHaveLength(2)
     expect(screen.getByRole('button', { name: /P&L/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /Баланс/ })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /Баланс/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /ДДС/ })).not.toBeDisabled()
   })
 
   it('выбор ДДС открывает рабочую область; «← Модули» возвращает к выбору', () => {

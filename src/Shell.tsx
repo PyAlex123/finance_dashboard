@@ -4,10 +4,12 @@ import { connectBackend, connectTelegram, disconnectBackend } from './data/backe
 import { isTelegram, initTelegramUI, telegramInitData } from './features/session/telegram'
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
-import DesignSystemView from './features/designsystem/DesignSystemView'
 import App from './App'
 import PlApp from './features/pnl/PlApp'
 import BsApp from './features/bs/BsApp'
+
+// В Telegram вход автоматический (по id) — «Выйти» не показываем.
+const inTelegram = isTelegram()
 
 // Оболочка-маршрутизатор экранов: вход → выбор модуля → рабочая область.
 // Юзернейм запоминается (localStorage); модуль выбирается заново каждую сессию.
@@ -15,7 +17,6 @@ export default function Shell() {
   const [username, setUser] = useState<string | null>(() => getUsername())
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined)
   const [module, setModule] = useState<ModuleId | null>(null)
-  const [designSystem, setDesignSystem] = useState(false)
 
   // Старт: внутри Telegram — авто-вход (initData → JWT), иначе подключаем
   // запомненного пользователя (серверный режим). Локальный режим — no-op.
@@ -50,24 +51,25 @@ export default function Shell() {
     setUser(null)
     setPhotoUrl(undefined)
     setModule(null)
-    setDesignSystem(false)
   }
 
+  // «Выйти» доступно только вне Telegram (в браузере/LAN). В Telegram — undefined,
+  // и кнопка не рендерится (в модулях она уже под `{onLogout && …}`).
+  const onLogout = inTelegram ? undefined : logout
+
   if (!username) return <LoginScreen onLogin={login} />
-  if (designSystem) return <DesignSystemView onBack={() => setDesignSystem(false)} />
   if (!module) {
     return (
       <ModuleChooser
         username={username}
         photoUrl={photoUrl}
         onPick={setModule}
-        onLogout={logout}
-        onOpenDesignSystem={() => setDesignSystem(true)}
+        onLogout={onLogout}
       />
     )
   }
 
-  const workspaceProps = { username, photoUrl, onBack: () => setModule(null), onLogout: logout }
+  const workspaceProps = { username, photoUrl, onBack: () => setModule(null), onLogout }
   if (module === 'bs') return <BsApp {...workspaceProps} />
   if (module === 'pl') return <PlApp {...workspaceProps} />
   return <App {...workspaceProps} />

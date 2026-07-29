@@ -45,3 +45,6 @@ JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production")
 JWT_TTL_SECONDS: int = int(os.getenv("JWT_TTL_SECONDS", str(7 * 24 * 3600)))
 # Максимальный возраст initData (защита от повторного использования), сек.
 TELEGRAM_INITDATA_MAX_AGE: int = int(os.getenv("TELEGRAM_INITDATA_MAX_AGE", str(24 * 3600)))
+# Публичный URL Web App (для кнопок бота: /start и меню «Кабинет»). Напр.
+# https://grammerce.io/dashboards/. Пусто — бот не сможет собрать кнопки.
+WEBAPP_URL: str = os.getenv("WEBAPP_URL", "").strip()

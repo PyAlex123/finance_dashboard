@@ -31,5 +31,20 @@ services:
       - "127.0.0.1:${APP_PORT:-8090}:8000"
     restart: unless-stopped
 
+  # Процесс-бот: отвечает на /start кнопкой Web App и ставит меню «Кабинет».
+  # Переиспользует ОБРАЗ сервиса app (своего build нет) — меняем только команду.
+  # Наружу ничего не слушает; long-polling к api.telegram.org. Изоляция та же
+  # (общий name: finance-dashboard, уникальный container_name).
+  bot:
+    image: finance-dashboard-app:latest
+    container_name: finance-dashboard-bot
+    command: ["python", "-m", "app.bot"]
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      WEBAPP_URL: ${WEBAPP_URL:-https://grammerce.io/dashboards/}
+    depends_on:
+      - app
+    restart: unless-stopped
+
 volumes:
   app_data:

@@ -38,8 +38,8 @@ describe('OperationForm — правка существующей записи',
     expect(screen.getByText('Изменить операцию')).toBeInTheDocument()
     expect((screen.getByLabelText('Дата') as HTMLInputElement).value).toBe('2025-05-10')
     expect((screen.getByPlaceholderText('Оплата курса…') as HTMLInputElement).value).toBe('Обед')
-    // сумма показывается по модулю (знак задаёт тип)
-    expect((screen.getByPlaceholderText('650000') as HTMLInputElement).value).toBe('300000')
+    // сумма показывается по модулю (знак задаёт тип), с разделителями разрядов
+    expect((screen.getByPlaceholderText('650 000') as HTMLInputElement).value).toBe('300 000')
   })
 
   it('сохранение меняет ту же операцию, а не создаёт новую', () => {
@@ -47,7 +47,7 @@ describe('OperationForm — правка существующей записи',
     const op = store.getState().data.operations[0]
     renderForm(store, op.id)
 
-    fireEvent.change(screen.getByPlaceholderText('650000'), { target: { value: '450000' } })
+    fireEvent.change(screen.getByPlaceholderText('650 000'), { target: { value: '450000' } })
     fireEvent.change(screen.getByPlaceholderText('Оплата курса…'), { target: { value: 'Ужин' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
 

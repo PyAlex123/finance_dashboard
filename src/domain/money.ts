@@ -36,6 +36,26 @@ export function toMajorNumber(m: Money): number {
   return Number(m) / Number(MINOR_PER_MAJOR)
 }
 
+/**
+ * Форматирование СТРОКИ ввода суммы «на лету»: целую часть группируем пробелом по
+ * 3 разряда — «650000» → «650 000». Дробную часть (после «,» или «.») сохраняем,
+ * лишние символы отбрасываем. Результат по-прежнему разбирается parseMoney (он
+ * игнорирует пробелы), так что сохранение не ломается. Пустой ввод → "".
+ */
+export function groupThousands(raw: string): string {
+  const cleaned = raw.replace(/[^\d.,-]/g, '')
+  const neg = cleaned.startsWith('-')
+  const body = neg ? cleaned.slice(1) : cleaned
+  const sepMatch = body.match(/[.,]/)
+  const sep = sepMatch ? sepMatch[0] : ''
+  const [intRaw = '', fracRaw = ''] = sep ? body.split(sep) : [body, '']
+  const intDigits = intRaw.replace(/\D/g, '')
+  const fracDigits = fracRaw.replace(/\D/g, '').slice(0, 2)
+  const intGrouped = intDigits.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  const out = sep ? `${intGrouped || '0'}${sep}${fracDigits}` : intGrouped
+  return (neg ? '-' : '') + out
+}
+
 /** Форматирование в сумы с разделителями разрядов. */
 export function formatMoney(
   m: Money,

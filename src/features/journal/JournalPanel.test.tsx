@@ -32,7 +32,7 @@ describe('JournalPanel — быстрый ввод', () => {
   it('попап создаёт операцию на сегодня', () => {
     const store = renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
-    fireEvent.change(screen.getByPlaceholderText('650000'), { target: { value: '500000' } })
+    fireEvent.change(screen.getByPlaceholderText('650 000'), { target: { value: '500000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Добавить' }))
 
     const ops = store.getState().data.operations
@@ -44,7 +44,7 @@ describe('JournalPanel — быстрый ввод', () => {
   it('по умолчанию тип — приход, а не расход', () => {
     const store = renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
-    fireEvent.change(screen.getByPlaceholderText('650000'), { target: { value: '100000' } })
+    fireEvent.change(screen.getByPlaceholderText('650 000'), { target: { value: '100000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Добавить' }))
 
     const op = store.getState().data.operations[0]
@@ -56,7 +56,7 @@ describe('JournalPanel — быстрый ввод', () => {
   it('удаление операции убирает её вместе с проводками', () => {
     const store = renderPanel()
     fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }))
-    fireEvent.change(screen.getByPlaceholderText('650000'), { target: { value: '100000' } })
+    fireEvent.change(screen.getByPlaceholderText('650 000'), { target: { value: '100000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Добавить' }))
     const id = store.getState().data.operations[0].id
 

@@ -5,7 +5,7 @@ import { selectActiveAccounts, selectCategories, selectData } from '../../store/
 import {
   addOperation, updateOperation, upsertCategory, type OperationInput,
 } from '../../store/dataSlice'
-import { parseMoney, toMajorNumber } from '../../domain/money'
+import { parseMoney, toMajorNumber, groupThousands } from '../../domain/money'
 import { autoCode } from '../../domain/codes'
 import { directionForType, todayIso } from './rowEdit'
 import { useToast } from '../ui/Toast'
@@ -45,7 +45,7 @@ export default function OperationForm({
     : editLines[0]
   const toLine = editing?.type === 'transfer' ? editLines.find((l) => l.amount > 0n) : undefined
   const initialAmount = fromLine
-    ? String(Math.abs(toMajorNumber(fromLine.amount)))
+    ? groupThousands(String(Math.abs(toMajorNumber(fromLine.amount))))
     : ''
 
   const [type, setType] = useState<OperationType>(editing?.type ?? 'income')
@@ -191,7 +191,7 @@ export default function OperationForm({
           <label className="field">
             <span>Сумма</span>
             <div className="mamount">
-              <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" placeholder="650000" />
+              <input value={amount} onChange={(e) => setAmount(groupThousands(e.target.value))} inputMode="numeric" placeholder="650 000" />
               <span className="mamount__cur">{currency === 'UZS' ? 'сум' : currency}</span>
             </div>
           </label>

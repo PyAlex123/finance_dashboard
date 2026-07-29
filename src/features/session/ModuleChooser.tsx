@@ -23,34 +23,32 @@ interface ModuleCard {
 const MODULES: ModuleCard[] = [
   { id: 'dds', eyebrow: 'Модуль 01', title: 'ДДС', desc: 'Движение денежных средств: приход, расход, переброски.' },
   { id: 'pl', eyebrow: 'Модуль 02', title: 'P&L', desc: 'Прибыли и убытки по методу начисления.', soon: true },
-  { id: 'bs', eyebrow: 'Модуль 03', title: 'Баланс', desc: 'Активы и обязательства на дату.' },
+  { id: 'bs', eyebrow: 'Модуль 03', title: 'Баланс', desc: 'Активы и обязательства на дату.', soon: true },
 ]
 
 export default function ModuleChooser({
-  username, photoUrl, onPick, onLogout, onOpenDesignSystem,
+  username, photoUrl, onPick, onLogout,
 }: {
   username: string
   photoUrl?: string
   onPick: (id: ModuleId) => void
-  onLogout: () => void
-  onOpenDesignSystem: () => void
+  onLogout?: () => void
 }) {
   const totalBalance = useAppSelector(selectTotalBalance)
   const netProfit = useAppSelector(selectPlNetProfit)
 
   // Серверный режим: снимок на этом экране не подключён — показываем количество
   // отчётов каждого типа. Локальный режим — единый снимок, показываем его сводку.
+  // Активен только ДДС; для него в серверном режиме показываем число отчётов.
   const [counts, setCounts] = useState<Partial<Record<ModuleId, number>>>({})
   useEffect(() => {
     if (!REMOTE) return
     let cancelled = false
     async function load() {
-      for (const id of ['dds', 'bs'] as ModuleId[]) {
-        try {
-          const items = await listReports(MODULE_FORM[id])
-          if (!cancelled) setCounts((c) => ({ ...c, [id]: items.length }))
-        } catch { /* сеть недоступна — оставим прочерк */ }
-      }
+      try {
+        const items = await listReports(MODULE_FORM.dds)
+        if (!cancelled) setCounts((c) => ({ ...c, dds: items.length }))
+      } catch { /* сеть недоступна — оставим прочерк */ }
     }
     void load()
     return () => { cancelled = true }
@@ -60,12 +58,12 @@ export default function ModuleChooser({
     ? {
       dds: { value: counts.dds === undefined ? '—' : String(counts.dds), label: 'отчётов' },
       pl: { value: '—', label: 'скоро' },
-      bs: { value: counts.bs === undefined ? '—' : String(counts.bs), label: 'отчётов' },
+      bs: { value: '—', label: 'скоро' },
     }
     : {
       dds: { value: formatMoney(totalBalance), label: 'остаток, сум' },
       pl: { value: netProfit === null ? '—' : formatMoney(netProfit), label: 'скоро' },
-      bs: { value: '—', label: 'на дату' },
+      bs: { value: '—', label: 'скоро' },
     }
 
   return (
@@ -77,7 +75,7 @@ export default function ModuleChooser({
         </div>
         <div className="chooser__who">
           <ProfileBadge name={username} photoUrl={photoUrl} />
-          <button className="btn" onClick={onLogout}>Выйти</button>
+          {onLogout && <button className="btn" onClick={onLogout}>Выйти</button>}
         </div>
       </header>
 
@@ -101,10 +99,6 @@ export default function ModuleChooser({
             </div>
           </button>
         ))}
-      </div>
-
-      <div className="chooser__ds">
-        <a href="#" onClick={(e) => { e.preventDefault(); onOpenDesignSystem() }}>Дизайн-система →</a>
       </div>
     </div>
   )

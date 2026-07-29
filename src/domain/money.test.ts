@@ -8,6 +8,7 @@ import {
   sub,
   sum,
   convertUsdToUzs,
+  groupThousands,
 } from './money'
 
 describe('money — минорные единицы bigint', () => {
@@ -60,5 +61,24 @@ describe('money — минорные единицы bigint', () => {
     const usd = fromMajor(52) // 5200 минорных USD
     const rate = fromMajor(12500) // 1 250 000 минорных UZS за 1 USD
     expect(convertUsdToUzs(usd, rate)).toBe(fromMajor(650000))
+  })
+
+  it('groupThousands расставляет пробелы по разрядам при вводе', () => {
+    expect(groupThousands('650000')).toBe('650 000')
+    expect(groupThousands('1200000')).toBe('1 200 000')
+    expect(groupThousands('650 000')).toBe('650 000') // повторный прогон стабилен
+    expect(groupThousands('')).toBe('')
+    expect(groupThousands('0')).toBe('0')
+    expect(groupThousands('00123')).toBe('123') // ведущие нули убираем
+    expect(groupThousands('-85000')).toBe('-85 000')
+  })
+
+  it('groupThousands сохраняет дробную часть и совместим с parseMoney', () => {
+    expect(groupThousands('1200000,5')).toBe('1 200 000,5')
+    expect(groupThousands('1200000.50')).toBe('1 200 000.50')
+    expect(groupThousands('12,999')).toBe('12,99') // не больше 2 знаков
+    // главное: результат по-прежнему корректно разбирается
+    expect(parseMoney(groupThousands('650000'))).toBe(fromMajor(650000))
+    expect(parseMoney(groupThousands('1200000,50'))).toBe(fromMajor('1200000.50'))
   })
 })

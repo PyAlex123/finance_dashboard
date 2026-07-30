@@ -3,10 +3,11 @@
 // категориям (донат), динамика остатка главного счёта.
 
 import { createSelector } from '@reduxjs/toolkit'
-import { selectData, selectActiveAccounts, selectPeriods } from '../../store/selectors'
+import { selectData } from '../../store/selectors'
 import { buildAggContext, aggValue } from '../../engine/aggregate'
 import { toMajorNumber, type Money } from '../../domain/money'
-import { formatPeriod } from '../../engine/periods'
+import { derivePeriods, formatPeriod } from '../../engine/periods'
+import type { DataSnapshot } from '../../domain/types'
 
 export interface ExpenseSlice {
   name: string
@@ -35,9 +36,14 @@ const EMPTY: DashboardData = {
   expenses: [], mainAccount: null, hasData: false,
 }
 
-export const selectDashboard = createSelector(
-  [selectData, selectActiveAccounts, selectPeriods],
-  (data, accounts, periods): DashboardData => {
+/**
+ * Данные дашборда — чистая функция от снимка (для экрана и Excel-экспорта).
+ * Периоды и активные счета выводит сама (как selectPeriods/selectActiveAccounts).
+ */
+export function computeDashboard(data: DataSnapshot): DashboardData {
+  const accounts = data.accounts.filter((a) => a.active).sort((a, b) => a.order - b.order)
+  const periods = derivePeriods(data.operations)
+  {
     if (periods.length === 0 || accounts.length === 0) return EMPTY
     const ctx = buildAggContext(data)
 
@@ -99,5 +105,7 @@ export const selectDashboard = createSelector(
       mainAccount,
       hasData: true,
     }
-  },
-)
+  }
+}
+
+export const selectDashboard = createSelector([selectData], computeDashboard)

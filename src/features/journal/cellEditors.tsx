@@ -39,7 +39,7 @@ export const MoneyCellEditor = forwardRef((props: ICellEditorParams, ref) => {
   return (
     <input
       className="cell-editor cell-editor--num"
-      inputMode="numeric"
+      inputMode="decimal"
       value={text}
       autoFocus
       onChange={(e) => setText(e.target.value)}

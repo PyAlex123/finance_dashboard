@@ -108,7 +108,7 @@ function BsRow({
               key={cellMajor(cell.get(`${row.code}|${p}`))}
               onBlur={(e) => onCell(p, e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-              inputMode="numeric"
+              inputMode="decimal"
             />
           ) : (
             <ReadCell v={row.values[i]} check={isCheck} />

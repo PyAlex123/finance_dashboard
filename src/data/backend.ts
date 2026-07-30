@@ -42,6 +42,7 @@ export interface TelegramSession {
   workspace: string
   photoUrl?: string
   username?: string
+  isAdmin?: boolean
 }
 
 /**
@@ -58,11 +59,15 @@ export async function connectTelegram(initData: string): Promise<TelegramSession
       body: JSON.stringify({ initData }),
     })
     if (!res.ok) return null
-    const { token, workspace, name, photoUrl, username } = (await res.json()) as {
-      token: string; workspace: string; name: string; photoUrl?: string | null; username?: string | null
+    const { token, workspace, name, photoUrl, username, isAdmin } = (await res.json()) as {
+      token: string; workspace: string; name: string
+      photoUrl?: string | null; username?: string | null; isAdmin?: boolean
     }
     session = { owner: workspace, token }
-    return { name, workspace, photoUrl: photoUrl ?? undefined, username: username ?? undefined }
+    return {
+      name, workspace, isAdmin: !!isAdmin,
+      photoUrl: photoUrl ?? undefined, username: username ?? undefined,
+    }
   } catch {
     return null
   }

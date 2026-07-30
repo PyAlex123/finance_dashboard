@@ -191,7 +191,7 @@ export default function OperationForm({
           <label className="field">
             <span>Сумма</span>
             <div className="mamount">
-              <input value={amount} onChange={(e) => setAmount(groupThousands(e.target.value))} inputMode="numeric" placeholder="650 000" />
+              <input value={amount} onChange={(e) => setAmount(groupThousands(e.target.value))} inputMode="decimal" placeholder="650 000" />
               <span className="mamount__cur">{currency === 'UZS' ? 'сум' : currency}</span>
             </div>
           </label>

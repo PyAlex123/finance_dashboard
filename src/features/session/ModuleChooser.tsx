@@ -27,10 +27,13 @@ const MODULES: ModuleCard[] = [
 ]
 
 export default function ModuleChooser({
-  username, photoUrl, onPick, onLogout,
+  username, photoUrl, tgId, isAdmin, onOpenAdmin, onPick, onLogout,
 }: {
   username: string
   photoUrl?: string
+  tgId?: string
+  isAdmin?: boolean
+  onOpenAdmin?: () => void
   onPick: (id: ModuleId) => void
   onLogout?: () => void
 }) {
@@ -75,9 +78,19 @@ export default function ModuleChooser({
         </div>
         <div className="chooser__who">
           <ProfileBadge name={username} photoUrl={photoUrl} />
+          {isAdmin && onOpenAdmin && (
+            <button className="btn" onClick={onOpenAdmin}>👥 Пользователи</button>
+          )}
           {onLogout && <button className="btn" onClick={onLogout}>Выйти</button>}
         </div>
       </header>
+
+      {tgId && (
+        <div className="chooser__idhint">
+          Ваш Telegram ID: <b>{tgId}</b>
+          {!isAdmin && ' — впишите его в ADMIN_TG_IDS на сервере, чтобы стать админом'}
+        </div>
+      )}
 
       <div className="chooser__grid">
         {MODULES.map((m) => (

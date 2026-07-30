@@ -48,3 +48,17 @@ TELEGRAM_INITDATA_MAX_AGE: int = int(os.getenv("TELEGRAM_INITDATA_MAX_AGE", str(
 # Публичный URL Web App (для кнопок бота: /start и меню «Кабинет»). Напр.
 # https://grammerce.io/dashboards/. Пусто — бот не сможет собрать кнопки.
 WEBAPP_URL: str = os.getenv("WEBAPP_URL", "").strip()
+
+# Админы — по Telegram id (через запятую), напр. ADMIN_TG_IDS=12345,67890.
+# Нормализуем в пространства tg:<id>. Пусто — админов нет.
+def _parse_admins(raw: str) -> set[str]:
+    out: set[str] = set()
+    for part in raw.split(","):
+        p = part.strip()
+        if not p:
+            continue
+        out.add(p if p.startswith("tg:") else f"tg:{p}")
+    return out
+
+
+ADMIN_TG_IDS: set[str] = _parse_admins(os.getenv("ADMIN_TG_IDS", ""))

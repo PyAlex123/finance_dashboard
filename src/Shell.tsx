@@ -4,6 +4,7 @@ import { connectBackend, connectTelegram, disconnectBackend } from './data/backe
 import { isTelegram, initTelegramUI, telegramInitData } from './features/session/telegram'
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
+import AdminUsers from './features/admin/AdminUsers'
 import App from './App'
 import PlApp from './features/pnl/PlApp'
 import BsApp from './features/bs/BsApp'
@@ -16,7 +17,10 @@ const inTelegram = isTelegram()
 export default function Shell() {
   const [username, setUser] = useState<string | null>(() => getUsername())
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined)
+  const [workspace, setWorkspace] = useState<string | undefined>(undefined)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [module, setModule] = useState<ModuleId | null>(null)
+  const [admin, setAdmin] = useState(false)
 
   // Старт: внутри Telegram — авто-вход (initData → JWT), иначе подключаем
   // запомненного пользователя (серверный режим). Локальный режим — no-op.
@@ -29,6 +33,8 @@ export default function Shell() {
         if (session && !cancelled) {
           setUser(session.name) // авто-вход: экран входа пропускаем
           setPhotoUrl(session.photoUrl)
+          setWorkspace(session.workspace)
+          setIsAdmin(!!session.isAdmin)
           return
         }
       }
@@ -50,7 +56,10 @@ export default function Shell() {
     clearUsername()
     setUser(null)
     setPhotoUrl(undefined)
+    setWorkspace(undefined)
+    setIsAdmin(false)
     setModule(null)
+    setAdmin(false)
   }
 
   // «Выйти» доступно только вне Telegram (в браузере/LAN). В Telegram — undefined,
@@ -58,11 +67,15 @@ export default function Shell() {
   const onLogout = inTelegram ? undefined : logout
 
   if (!username) return <LoginScreen onLogin={login} />
+  if (admin) return <AdminUsers onBack={() => setAdmin(false)} />
   if (!module) {
     return (
       <ModuleChooser
         username={username}
         photoUrl={photoUrl}
+        tgId={workspace?.startsWith('tg:') ? workspace.slice(3) : undefined}
+        isAdmin={isAdmin}
+        onOpenAdmin={() => setAdmin(true)}
         onPick={setModule}
         onLogout={onLogout}
       />

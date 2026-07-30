@@ -24,7 +24,7 @@ from .auth import (
     workspace_for,
 )
 from .config import (
-    BASE_PATH, CORS_ORIGINS, JWT_SECRET, JWT_TTL_SECONDS, STATIC_DIR,
+    ADMIN_TG_IDS, BASE_PATH, CORS_ORIGINS, JWT_SECRET, JWT_TTL_SECONDS, STATIC_DIR,
     TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE,
 )
 from .db import Base, engine, get_session
@@ -71,6 +71,11 @@ def health() -> dict:
     return {"status": "ok", "telegramAuth": bool(TELEGRAM_BOT_TOKEN)}
 
 
+def is_admin(workspace: str) -> bool:
+    """Пространство (tg:<id>) входит в список админов из ADMIN_TG_IDS."""
+    return workspace in ADMIN_TG_IDS
+
+
 # ---------- Telegram Web App: вход по initData → свой JWT ----------
 
 class TelegramAuthIn(BaseModel):
@@ -109,6 +114,7 @@ def auth_telegram(body: TelegramAuthIn, db: Session = Depends(get_session)) -> d
         "name": name,
         "photoUrl": fields["photo_url"],
         "username": fields["username"],
+        "isAdmin": is_admin(workspace),
     }
 
 
@@ -280,6 +286,44 @@ def delete_report(
         db.delete(snap)
     db.commit()
     return {"ok": True}
+
+
+# ---------- Админ: список зарегистрированных пользователей ----------
+
+def require_admin(authorization: str | None = Header(default=None)) -> str:
+    """Пропускает только валидный JWT, чей sub входит в ADMIN_TG_IDS. Возвращает sub."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Требуется вход")
+    try:
+        payload = jwt_decode(token, JWT_SECRET)
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    sub = payload.get("sub") or ""
+    if not is_admin(sub):
+        raise HTTPException(status_code=403, detail="Доступ только для администратора")
+    return sub
+
+
+@api.get("/admin/users")
+def admin_users(
+    db: Session = Depends(get_session),
+    _: str = Depends(require_admin),
+) -> dict:
+    rows = db.execute(select(models.User).order_by(models.User.created_at.asc())).scalars().all()
+    users = [
+        {
+            "tgId": u.tg_id,
+            "username": u.username,
+            "firstName": u.first_name,
+            "lastName": u.last_name,
+            "photoUrl": u.photo_url,
+            "createdAt": u.created_at.isoformat() if u.created_at else None,
+            "lastSeen": u.last_seen.isoformat() if u.last_seen else None,
+        }
+        for u in rows
+    ]
+    return {"count": len(users), "users": users}
 
 
 app.include_router(api)

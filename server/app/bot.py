@@ -1,22 +1,27 @@
 """Минимальный процесс-бот Telegram (второй сервис в том же compose).
 
-Задачи (ровно две, без бизнес-логики — весь кабинет в Web App):
+Задачи (без бизнес-логики — весь кабинет в Web App):
   1. на `/start` отвечать сообщением с inline-кнопкой Web App «Открыть платформу»;
-  2. поставить левую кнопку-меню чата «Кабинет», открывающую тот же Web App.
+  2. поставить левую кнопку-меню чата «Кабинет», открывающую тот же Web App;
+  3. подтверждать вход с компьютера: `/start <nonce>` (ссылка с сайта) → кнопка
+     «Войти с компьютера» → сообщаем об этом API, вкладка сайта сама входит.
 
 Реализовано на stdlib (`urllib`) — без новых зависимостей. Long-polling getUpdates:
 одному токену — один потребитель обновлений, поэтому вебхук перед стартом снимаем.
 
-Запуск: `python -m app.bot` (в образе app; переменные TELEGRAM_BOT_TOKEN, WEBAPP_URL).
+Запуск: `python -m app.bot` (в образе app; переменные TELEGRAM_BOT_TOKEN, WEBAPP_URL,
+INTERNAL_API_URL и JWT_SECRET — последним подписываем запрос к своему же API).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 import urllib.error
 import urllib.request
 
-from .config import TELEGRAM_BOT_TOKEN, WEBAPP_URL
+from .auth import jwt_encode
+from .config import INTERNAL_API_URL, JWT_SECRET, TELEGRAM_BOT_TOKEN, WEBAPP_URL
 
 API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -67,7 +72,74 @@ def send_start(chat_id: int) -> None:
     })
 
 
+def approve_login(nonce: str, user: dict) -> bool:
+    """Сообщить своему API, что вход подтверждён. Эндпоинт доступен снаружи, поэтому
+    подписываем запрос коротким JWT на общем JWT_SECRET (`bot: true`)."""
+    token = jwt_encode({"bot": True}, JWT_SECRET, 60)
+    url = f"{INTERNAL_API_URL.rstrip('/')}/api/auth/tg-link/approve"
+    data = json.dumps({"nonce": nonce, "user": user}).encode()
+    req = urllib.request.Request(
+        url, data=data,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read().decode()).get("status") in {"ok", "already"}
+    except Exception as e:  # noqa: BLE001 — заявка могла истечь, скажем об этом пользователю
+        print("approve_login:", e, flush=True)
+        return False
+
+
+def send_login_request(chat_id: int, nonce: str) -> None:
+    """Ответ на переход по ссылке с сайта: спросить подтверждение входа."""
+    code = hashlib.sha256(nonce.encode()).hexdigest()[:4].upper()
+    api("sendMessage", {
+        "chat_id": chat_id,
+        "text": (
+            "Вход с компьютера\n\n"
+            f"Код на сайте: {code}\n"
+            "Если код совпадает — подтвердите вход кнопкой ниже.\n\n"
+            "Если вы сейчас никуда не входили — просто закройте этот чат "
+            "и ничего не нажимайте."
+        ),
+        "reply_markup": {
+            "inline_keyboard": [[
+                {"text": "✅ Войти с компьютера", "callback_data": f"login:{nonce}"}
+            ]]
+        },
+    })
+
+
+def handle_callback(cb: dict) -> None:
+    data = (cb.get("data") or "").strip()
+    if not data.startswith("login:"):
+        return
+    nonce = data.removeprefix("login:")
+    user = cb.get("from") or {}
+    ok = approve_login(nonce, user)
+    api("answerCallbackQuery", {
+        "callback_query_id": cb["id"],
+        "text": "Готово" if ok else "Срок действия ссылки истёк",
+    })
+    msg = cb.get("message") or {}
+    chat_id = msg.get("chat", {}).get("id")
+    if chat_id is None:
+        return
+    api("editMessageText", {
+        "chat_id": chat_id,
+        "message_id": msg.get("message_id"),
+        "text": (
+            "✅ Вход подтверждён — вернитесь на вкладку в браузере."
+            if ok else
+            "Ссылка устарела. Нажмите «Войти через Telegram» на сайте ещё раз."
+        ),
+    })
+
+
 def handle_update(upd: dict) -> None:
+    if upd.get("callback_query"):
+        handle_callback(upd["callback_query"])
+        return
     msg = upd.get("message") or upd.get("edited_message")
     if not msg:
         return
@@ -75,9 +147,13 @@ def handle_update(upd: dict) -> None:
     chat_id = msg.get("chat", {}).get("id")
     if chat_id is None:
         return
-    # Реагируем на /start (в т.ч. с параметром: «/start abc»).
-    if text == "/start" or text.startswith("/start"):
-        send_start(chat_id)
+    # /start с параметром — переход с сайта (подтверждение входа), без — приветствие.
+    if text.startswith("/start"):
+        payload = text.removeprefix("/start").strip()
+        if payload:
+            send_login_request(chat_id, payload)
+        else:
+            send_start(chat_id)
 
 
 def main() -> None:

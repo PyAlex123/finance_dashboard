@@ -25,6 +25,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     volumes:
       - app_data:/data
@@ -43,6 +44,10 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       WEBAPP_URL: ${WEBAPP_URL:-https://grammerce.io/dashboards/}
+      # Подтверждение входа с сайта: бот стучится в API сервиса `app` по внутренней
+      # сети compose и подписывает запрос общим JWT_SECRET.
+      BASE_PATH: ${BASE_PATH:-/dashboards}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     depends_on:
       - app
     restart: unless-stopped

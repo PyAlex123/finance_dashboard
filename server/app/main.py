@@ -5,11 +5,12 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import secrets
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,13 +23,14 @@ from sqlalchemy.orm import Session
 from . import models
 from .auth import (
     AuthError, display_name, jwt_decode, jwt_encode, user_fields, validate_init_data,
-    validate_login_widget, workspace_for,
+    workspace_for,
 )
 from .config import (
-    ADMIN_TG_IDS, BASE_PATH, CORS_ORIGINS, JWT_SECRET, JWT_TTL_SECONDS, STATIC_DIR,
-    TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_INITDATA_MAX_AGE,
+    ADMIN_TG_IDS, BASE_PATH, CORS_ORIGINS, GOOGLE_CLIENT_ID, JWT_SECRET, JWT_TTL_SECONDS,
+    LOGIN_REQUEST_TTL, STATIC_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE,
 )
 from .db import Base, engine, get_session
+from .providers import bot_username, verify_google_id_token
 
 
 @asynccontextmanager
@@ -85,12 +87,13 @@ class TelegramAuthIn(BaseModel):
 
 @api.get("/config")
 def public_config() -> dict:
-    """Публичные настройки страницы входа: какой бот у кнопки Telegram и включён
-    ли вход через Google. Отдаём в рантайме, чтобы смена бота не требовала
-    пересборки фронта."""
+    """Публичные настройки страницы входа: имя бота для ссылки t.me/<bot> и
+    Client ID для кнопки Google. Отдаём в рантайме, чтобы смена бота или проекта
+    Google не требовала пересборки фронта."""
     return {
-        "telegramBot": TELEGRAM_BOT_USERNAME if TELEGRAM_BOT_TOKEN else "",
-        "googleEnabled": False,
+        "telegramBot": bot_username(),
+        "googleClientId": GOOGLE_CLIENT_ID,
+        "googleEnabled": bool(GOOGLE_CLIENT_ID),
     }
 
 
@@ -105,29 +108,138 @@ def auth_telegram(body: TelegramAuthIn, db: Session = Depends(get_session)) -> d
     return _issue_session(db, user)
 
 
-@api.post("/auth/telegram-widget")
-async def auth_telegram_widget(request: Request, db: Session = Depends(get_session)) -> dict:
-    """Вход через Telegram Login Widget (обычный браузер, вне Web App).
+# ---------- Вход через бота: t.me/<bot>?start=<nonce> ----------
+#
+# Браузер вне Telegram: сайт создаёт одноразовую заявку и открывает ссылку в бота,
+# пользователь подтверждает вход кнопкой в чате, вкладка сайта опрашивает сервер и
+# получает тот же JWT. Ни домена у @BotFather, ни виджета не нужно.
 
-    Тело — объект, который виджет отдал в data-onauth (id, auth_date, hash и
-    поля профиля); состав полей задаёт Telegram, поэтому принимаем как есть и
-    проверяем подпись по всему объекту.
-    """
-    if not TELEGRAM_BOT_TOKEN:
-        raise HTTPException(status_code=503, detail="Telegram-логин не настроен на сервере")
-    body = await request.json()
-    if not isinstance(body, dict):
-        raise HTTPException(status_code=400, detail="Ожидался объект с данными виджета")
+
+def login_code(nonce: str) -> str:
+    """Короткий код для сверки глазами: одинаково считается на сайте и в боте.
+    Производный от nonce, самого секрета не раскрывает."""
+    return hashlib.sha256(nonce.encode()).hexdigest()[:4].upper()
+
+
+def _expired(row: models.LoginRequest) -> bool:
+    return (datetime.now(timezone.utc) - row.created_at.replace(tzinfo=timezone.utc)) > timedelta(
+        seconds=LOGIN_REQUEST_TTL
+    )
+
+
+def _purge_expired(db: Session) -> None:
+    """Чистим протухшие заявки, чтобы таблица не росла (заявок мало, делаем на входе)."""
+    deadline = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=LOGIN_REQUEST_TTL)
+    db.query(models.LoginRequest).filter(models.LoginRequest.created_at < deadline).delete()
+    db.commit()
+
+
+def require_bot(authorization: str | None = Header(default=None)) -> None:
+    """Подтверждать вход имеет право только наш бот: он подписывает короткий JWT
+    общим JWT_SECRET (эндпоинт публичен через nginx, поэтому проверка обязательна)."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
     try:
-        user = validate_login_widget(body, TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE)
+        payload = jwt_decode(token, JWT_SECRET)
     except AuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
-    return _issue_session(db, user)
+    if not payload.get("bot"):
+        raise HTTPException(status_code=401, detail="Токен не принадлежит боту")
 
 
-def _issue_session(db: Session, user: dict) -> dict:
-    """Общий хвост обоих входов: регистрация/обновление пользователя и свой JWT."""
-    workspace = workspace_for(user)
+@api.post("/auth/tg-link/start")
+def tg_link_start(db: Session = Depends(get_session)) -> dict:
+    """Создать заявку на вход и вернуть ссылку в бота."""
+    if not TELEGRAM_BOT_TOKEN:
+        raise HTTPException(status_code=503, detail="Telegram-логин не настроен на сервере")
+    bot = bot_username()
+    if not bot:
+        raise HTTPException(status_code=503, detail="Не удалось определить имя бота")
+    _purge_expired(db)
+    nonce = secrets.token_urlsafe(24)
+    db.add(models.LoginRequest(nonce=nonce))
+    db.commit()
+    return {
+        "nonce": nonce,
+        "url": f"https://t.me/{bot}?start={nonce}",
+        "code": login_code(nonce),
+        "expiresIn": LOGIN_REQUEST_TTL,
+    }
+
+
+@api.get("/auth/tg-link/{nonce}")
+def tg_link_poll(nonce: str, db: Session = Depends(get_session)) -> dict:
+    """Опрос заявки: ждём подтверждения, затем один раз отдаём сессию."""
+    row = db.get(models.LoginRequest, nonce)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+    if _expired(row):
+        db.delete(row)
+        db.commit()
+        raise HTTPException(status_code=404, detail="Заявка истекла")
+    if row.approved_at is None:
+        return {"status": "pending"}
+
+    user = {
+        "id": row.tg_id,
+        "first_name": row.first_name,
+        "last_name": row.last_name,
+        "username": row.username,
+        "photo_url": row.photo_url,
+    }
+    db.delete(row)  # одноразовая: повторный опрос уже ничего не даст
+    db.commit()
+    return {"status": "ok", **_issue_session(db, user)}
+
+
+@api.post("/auth/tg-link/approve")
+async def tg_link_approve(
+    request: Request,
+    db: Session = Depends(get_session),
+    _: None = Depends(require_bot),
+) -> dict:
+    """Вызывает бот после нажатия кнопки подтверждения в чате."""
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Ожидался объект")
+    row = db.get(models.LoginRequest, str(body.get("nonce") or ""))
+    if row is None or _expired(row):
+        raise HTTPException(status_code=404, detail="Заявка не найдена или истекла")
+    if row.approved_at is not None:
+        return {"status": "already"}  # повтор нажатия — не ошибка
+
+    user = body.get("user") or {}
+    if not user.get("id"):
+        raise HTTPException(status_code=400, detail="Нет пользователя")
+    row.tg_id = str(user["id"])
+    row.first_name = user.get("first_name")
+    row.last_name = user.get("last_name")
+    row.username = user.get("username")
+    row.photo_url = user.get("photo_url")
+    row.approved_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    return {"status": "ok"}
+
+
+# ---------- Google: вход по ID-токену ----------
+
+class GoogleAuthIn(BaseModel):
+    credential: str
+
+
+@api.post("/auth/google")
+def auth_google(body: GoogleAuthIn, db: Session = Depends(get_session)) -> dict:
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Вход через Google не настроен на сервере")
+    try:
+        user = verify_google_id_token(body.credential)
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    return _issue_session(db, user, provider="g")
+
+
+def _issue_session(db: Session, user: dict, provider: str = "tg") -> dict:
+    """Общий хвост всех входов: регистрация/обновление пользователя и свой JWT."""
+    workspace = workspace_for(user, provider)
     name = display_name(user)
     fields = user_fields(user)
 
@@ -156,14 +268,17 @@ def _issue_session(db: Session, user: dict) -> dict:
 
 
 def require_workspace_access(workspace: str, authorization: str | None = Header(default=None)) -> None:
-    """Пространства tg:* защищены JWT (когда включён Telegram-логин): токен обязан
+    """Пространства провайдеров защищены JWT (когда провайдер включён): токен обязан
     быть валиден, а пространство — принадлежать владельцу токена.
 
-    Владельцу `tg:<id>` принадлежат как само пространство, так и все его под-ключи
-    отчётов вида `tg:<id>:<form>:<rand>` (проверка по префиксу с двоеточием, чтобы
-    `tg:1` не покрывал `tg:12345`). Обычные имена (не tg:) — открыты, как раньше
-    (локальный режим/LAN)."""
-    if not (TELEGRAM_BOT_TOKEN and workspace.startswith("tg:")):
+    Владельцу `tg:<id>` (или `g:<sub>` у Google) принадлежат как само пространство,
+    так и все его под-ключи отчётов вида `tg:<id>:<form>:<rand>` (проверка по префиксу
+    с двоеточием, чтобы `tg:1` не покрывал `tg:12345`). Обычные имена — открыты, как
+    раньше (локальный режим/LAN)."""
+    guarded = (TELEGRAM_BOT_TOKEN and workspace.startswith("tg:")) or (
+        GOOGLE_CLIENT_ID and workspace.startswith("g:")
+    )
+    if not guarded:
         return
     token = (authorization or "").removeprefix("Bearer ").strip()
     if not token:

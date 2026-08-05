@@ -39,10 +39,22 @@ STATIC_DIR: str = os.getenv("STATIC_DIR", "")
 # Токен бота от @BotFather. Пусто — вход через Telegram выключен (работает обычный
 # вход по имени, пространство = имя в пути).
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
-# Имя бота без «@» — нужно кнопке Telegram Login Widget на странице входа
-# (в браузере, вне Web App). Домен сайта должен быть задан боту через /setdomain
-# у @BotFather, иначе виджет не отдаст данные.
+# Имя бота без «@» — для ссылки t.me/<bot>?start=… на странице входа. Обычно
+# определяется само через getMe; переменная нужна, только если контейнер не ходит
+# в api.telegram.org.
 TELEGRAM_BOT_USERNAME: str = os.getenv("TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
+# Сколько живёт заявка на вход через бота (секунды).
+LOGIN_REQUEST_TTL: int = int(os.getenv("LOGIN_REQUEST_TTL", "300"))
+# Адрес нашего же API изнутри compose-сети — по нему бот подтверждает вход
+# (сервис `app`, порт 8000; наружу не открыт). BASE_PATH добавляется автоматически.
+INTERNAL_API_URL: str = os.getenv(
+    "INTERNAL_API_URL", f"http://app:8000{BASE_PATH}"
+).rstrip("/")
+
+# --- Google OAuth (вход в браузере) ---
+# Client ID веб-приложения из Google Cloud → APIs & Services → Credentials.
+# Пусто — вход через Google выключен. Client secret не нужен: проверяем ID-токен.
+GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 # Секрет для подписи собственного JWT (HS256). В проде обязательно заменить.
 JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production")
 # Срок жизни выданного JWT.

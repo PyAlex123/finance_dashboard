@@ -32,14 +32,16 @@ class Snapshot(Base):
 
 
 class User(Base):
-    """Реестр пользователей Telegram. Запись создаётся/обновляется при каждом входе
-    (/auth/telegram) — «автоматическая регистрация». Фото не храним долго (URL
-    Telegram протухают): держим последнее известное значение только для справки,
-    в UI показываем свежее из initData каждой сессии."""
+    """Реестр пользователей. Запись создаётся/обновляется при каждом входе —
+    «автоматическая регистрация». Фото не храним долго (URL Telegram протухают):
+    держим последнее известное значение только для справки, в UI показываем свежее
+    из initData каждой сессии."""
 
     __tablename__ = "users"
 
-    # tg:<id> — то же пространство, что и workspace_for(user). Первичный ключ.
+    # Ключ рабочего пространства: tg:<id> (Telegram) или g:<sub> (Google) — то же
+    # значение, что возвращает workspace_for(user). Первичный ключ. Имя колонки
+    # осталось историческим (сначала были только Telegram-пользователи).
     tg_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     username: Mapped[str | None] = mapped_column(String(190), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(190), nullable=True)
@@ -51,6 +53,30 @@ class User(Base):
     last_seen: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
     )
+
+
+class LoginRequest(Base):
+    """Одноразовая заявка на вход через бота (браузер вне Telegram).
+
+    Сайт создаёт запись и открывает `t.me/<bot>?start=<nonce>`; бот после нажатия
+    кнопки подтверждения проставляет профиль пользователя; вкладка сайта опрашивает
+    сервер и получает JWT. Запись удаляется сразу после выдачи токена (одноразовая)
+    и протухает через несколько минут."""
+
+    __tablename__ = "login_requests"
+
+    # Секрет, известный только открывшей вход вкладке и переданный боту в ссылке.
+    nonce: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    # Пусто — ждём подтверждения; заполнено — можно выдавать сессию.
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    tg_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    username: Mapped[str | None] = mapped_column(String(190), nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(190), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(190), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Report(Base):

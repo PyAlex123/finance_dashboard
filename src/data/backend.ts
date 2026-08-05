@@ -45,6 +45,28 @@ export interface TelegramSession {
   isAdmin?: boolean
 }
 
+/** Ответ любого из эндпоинтов входа (Web App, бот, Google) — форма одна. */
+interface SessionResponse {
+  token: string
+  workspace: string
+  name: string
+  photoUrl?: string | null
+  username?: string | null
+  isAdmin?: boolean
+}
+
+/** Запомнить выданную сервером сессию и вернуть профиль для UI. */
+function rememberSession(body: SessionResponse): TelegramSession {
+  session = { owner: body.workspace, token: body.token }
+  return {
+    name: body.name,
+    workspace: body.workspace,
+    isAdmin: !!body.isAdmin,
+    photoUrl: body.photoUrl ?? undefined,
+    username: body.username ?? undefined,
+  }
+}
+
 /**
  * Вход через Telegram Web App: обменять initData на JWT и запомнить сессию
  * (tg:<id> + токен). Возвращает профиль (имя/фото/ник) для показа сверху, либо null,
@@ -59,64 +81,74 @@ export async function connectTelegram(initData: string): Promise<TelegramSession
       body: JSON.stringify({ initData }),
     })
     if (!res.ok) return null
-    const { token, workspace, name, photoUrl, username, isAdmin } = (await res.json()) as {
-      token: string; workspace: string; name: string
-      photoUrl?: string | null; username?: string | null; isAdmin?: boolean
-    }
-    session = { owner: workspace, token }
-    return {
-      name, workspace, isAdmin: !!isAdmin,
-      photoUrl: photoUrl ?? undefined, username: username ?? undefined,
-    }
+    return rememberSession((await res.json()) as SessionResponse)
   } catch {
     return null
   }
 }
 
-/** Данные, которые отдаёт кнопка Telegram Login Widget (уже подписанные ботом). */
-export interface TelegramWidgetUser {
-  id: number
-  auth_date: number
-  hash: string
-  first_name?: string
-  last_name?: string
-  username?: string
-  photo_url?: string
+/** Заявка на вход через бота: ссылку открываем, по nonce опрашиваем сервер. */
+export interface TelegramLink {
+  nonce: string
+  url: string
+  code: string
+  expiresIn: number
+}
+
+/** Создать заявку на вход с компьютера (сервер вернёт ссылку t.me/<bot>?start=…). */
+export async function startTelegramLink(): Promise<TelegramLink | null> {
+  if (!REMOTE) return null
+  try {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/tg-link/start`, {
+      method: 'POST',
+    })
+    if (!res.ok) return null
+    return (await res.json()) as TelegramLink
+  } catch {
+    return null
+  }
 }
 
 /**
- * Вход через Telegram в обычном браузере (Login Widget). Отличается от Web App
- * только форматом подписи — её проверяет сервер; здесь просто передаём объект
- * виджета как есть и запоминаем ту же сессию tg:<id> + JWT.
+ * Опрос заявки. `pending` — пользователь ещё не подтвердил, `expired` — заявка
+ * протухла (или уже использована), сессия — вход состоялся.
  */
-export async function connectTelegramWidget(
-  user: TelegramWidgetUser,
-): Promise<TelegramSession | null> {
+export async function pollTelegramLink(
+  nonce: string,
+): Promise<TelegramSession | 'pending' | 'expired'> {
+  if (!REMOTE) return 'expired'
+  try {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/tg-link/${nonce}`)
+    if (res.status === 404) return 'expired'
+    if (!res.ok) return 'pending' // временная ошибка сервера — просто ждём дальше
+    const body = (await res.json()) as { status?: string } & Record<string, unknown>
+    if (body.status !== 'ok') return 'pending'
+    return rememberSession(body as unknown as SessionResponse)
+  } catch {
+    return 'pending' // сеть моргнула — продолжаем опрашивать
+  }
+}
+
+/** Вход через Google: ID-токен от кнопки Google проверяет сервер. */
+export async function connectGoogle(credential: string): Promise<TelegramSession | null> {
   if (!REMOTE) return null
   try {
-    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/telegram-widget`, {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(user),
+      body: JSON.stringify({ credential }),
     })
     if (!res.ok) return null
-    const { token, workspace, name, photoUrl, username, isAdmin } = (await res.json()) as {
-      token: string; workspace: string; name: string
-      photoUrl?: string | null; username?: string | null; isAdmin?: boolean
-    }
-    session = { owner: workspace, token }
-    return {
-      name, workspace, isAdmin: !!isAdmin,
-      photoUrl: photoUrl ?? undefined, username: username ?? undefined,
-    }
+    return rememberSession((await res.json()) as SessionResponse)
   } catch {
     return null
   }
 }
 
-/** Публичная конфигурация входа с сервера (имя бота задаётся переменной окружения). */
+/** Публичная конфигурация входа с сервера (что настроено — то и показываем). */
 export interface PublicConfig {
   telegramBot: string
+  googleClientId: string
   googleEnabled: boolean
 }
 

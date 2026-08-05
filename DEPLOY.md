@@ -93,21 +93,45 @@ location /dashboards/ {
 2. `/setdescription` — описание бота.
 3. `/setmenubutton` → выбрать бота → текст «Открыть приложение» → URL
    `https://<домен>/dashboards/`. Одна кнопка, ведёт в Web App.
-4. **`/setdomain` → выбрать бота → `grammerce.io`.** Обязательно для кнопки
-   «Войти через Telegram» на странице `/dashboards/login` (Login Widget в обычном
-   браузере). Без домена виджет молча не отдаёт данные. Имя бота без «@» положить
-   в `.env.docker` (`TELEGRAM_BOT_USERNAME=financePro`) — фронт берёт его из
-   `/dashboards/api/config`, пересборка фронта при смене бота не нужна.
 
-## 5. Проверка на реальном примере
+Больше у бота ничего настраивать не нужно: вход с сайта работает через него же —
+кнопка «Войти через Telegram» открывает `t.me/<бот>?start=<код>`, бот показывает
+кнопку подтверждения, вкладка в браузере входит сама. Имя бота сервер узнаёт
+через `getMe`, `/setdomain` не требуется.
+
+## 5. Вход через Google (Google Cloud)
+
+Нужен, только если хотите включить кнопку «Войти через Google». Без `GOOGLE_CLIENT_ID`
+кнопка неактивна, остальное работает.
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → **New project** → `finlo`.
+2. **APIs & Services → OAuth consent screen** → тип **External** → название `finlo`,
+   почта поддержки, домен `grammerce.io`, ссылки на политику и условия:
+   `https://grammerce.io/dashboards/privacy` и `https://grammerce.io/dashboards/terms`
+   (страницы уже опубликованы).
+3. Scopes — только `openid`, `email`, `profile`. Это несенситивные скоупы,
+   проверка приложения Google не требуется.
+4. **Credentials → Create credentials → OAuth client ID → Web application**:
+   - Authorized JavaScript origins: `https://grammerce.io`
+     (для локальной отладки можно добавить `http://localhost:5173`);
+   - Authorized redirect URIs — не нужны: используется ID-токен, а не redirect-поток.
+5. Скопировать **Client ID** → `GOOGLE_CLIENT_ID=…` в `.env.docker` → пересобрать.
+   Client secret на сервере не хранится и не нужен.
+
+Проверка: `curl -s http://127.0.0.1:8090/dashboards/api/config` → `googleEnabled: true`.
+
+## 6. Проверка на реальном примере
 
 - Открыть бота в Telegram → кнопка меню → грузится `…/dashboards`, вход автоматический
   (лендинг внутри Telegram не показывается).
 - У пользователя своя учётка (`tg:<id>`, ник виден), данные сохраняются на сервере.
 - Второй Telegram-аккаунт → отдельные данные. Проверить мобильную вёрстку и офлайн.
 - В браузере: `https://<домен>/dashboards/` — лендинг, `…/dashboards/login` →
-  «Войти через Telegram» → кабинет. Прямые ссылки `…/login`, `…/privacy`, `…/terms`,
-  `…/app` и F5 на них должны открываться (SPA-fallback на стороне FastAPI).
+  «Войти через Telegram» → открывается бот → кнопка «Войти с компьютера» → вкладка
+  входит сама (код на странице и в сообщении должны совпасть). Прямые ссылки
+  `…/login`, `…/privacy`, `…/terms`, `…/app` и F5 на них должны открываться
+  (SPA-fallback на стороне FastAPI).
+- Логи бота при этом: `docker compose --env-file .env.docker logs -f bot`.
 
 ---
 
@@ -121,7 +145,8 @@ location /dashboards/ {
 | `APP_PORT` | локальный порт контейнера | `8090` |
 | `DATABASE_URL` | SQLite в томе | `sqlite:////data/fin_reports.db` |
 | `TELEGRAM_BOT_TOKEN` | токен бота (пусто = вход выкл.) | `123:ABC…` |
-| `TELEGRAM_BOT_USERNAME` | имя бота для кнопки входа в браузере (без «@») | `financePro` |
+| `TELEGRAM_BOT_USERNAME` | имя бота без «@»; обычно не нужна (берётся из `getMe`) | `financePro` |
+| `GOOGLE_CLIENT_ID` | вход через Google (пусто = кнопка неактивна) | `123-abc.apps.googleusercontent.com` |
 | `JWT_SECRET` | секрет JWT (сменить!) | `openssl rand -hex 32` |
 
 ## Данные пользователей и отчёты

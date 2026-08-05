@@ -297,7 +297,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 92px; }
   border: none; cursor: pointer; }
 .lp-login__btn--tg { color: #FFFFFF; background: #0B3B32; box-shadow: 0 20px 40px -30px rgba(11, 59, 50, .5);
   transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease; }
-.lp-login__tg:hover .lp-login__btn--tg { transform: translateY(-2px);
+.lp-login__btn--tg:not(:disabled):hover { transform: translateY(-2px);
   box-shadow: 0 12px 24px -12px rgba(11, 59, 50, .6); background: #14584A; }
 .lp-login__btn--google { color: #0E1F1A; background: #FFFFFF; border: 1px solid #DCE6E1;
   transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease; }
@@ -310,14 +310,27 @@ html { scroll-behavior: smooth; scroll-padding-top: 92px; }
 .lp-login__links a:hover { color: #14584A; }
 .lp-login__error { margin: 14px 0 0; font-size: 13.5px; color: #B85C38; }
 
-/* Кнопка Telegram: сверху нашей кнопки лежит официальный виджет (iframe) с
-   opacity:0 — так сохраняется вид макета, а клик уходит настоящему виджету
-   (программно кликнуть по кросс-доменному iframe нельзя). scale увеличивает и
-   область клика, поэтому виджет накрывает кнопку целиком. */
-.lp-login__tg { position: relative; }
-.lp-login__widget { position: absolute; inset: 0; overflow: hidden; border-radius: 14px;
+/* Кнопка Google: официальную кнопку Identity Services перерисовывать нельзя, поэтому
+   она лежит прозрачным слоем поверх нашей — вид из макета сохраняется, клик достаётся
+   ей. Ширина виджета (400px) совпадает с колонкой кнопок. */
+.lp-login__google { position: relative; }
+.lp-login__gis { position: absolute; inset: 0; overflow: hidden; border-radius: 14px;
   display: grid; place-items: center; opacity: 0; }
-.lp-login__widget > * { transform: scale(6); }
+.lp-login__gis > * { transform: scale(1.4); }
+
+/* Ожидание подтверждения входа в боте */
+.lp-login__waiting { background: #FFFFFF; border: 1px solid #DCE6E1; border-radius: 14px;
+  padding: 22px 20px; text-align: center; }
+.lp-login__waiting-title { font-family: Manrope, sans-serif; font-weight: 700; font-size: 16px;
+  color: #0B3B32; margin: 0 0 8px; }
+.lp-login__waiting-text { font-size: 14px; line-height: 1.6; color: #68807A; margin: 0; }
+.lp-login__code { font-family: Manrope, sans-serif; font-weight: 800; font-size: 30px;
+  letter-spacing: .22em; color: #0B3B32; margin: 16px 0 4px; font-variant-numeric: tabular-nums; }
+.lp-login__waiting-actions { display: flex; justify-content: center; gap: 18px; margin-top: 14px;
+  font-size: 13.5px; }
+.lp-login__waiting-actions button { font: inherit; color: #68807A; background: none; border: none;
+  padding: 0; cursor: pointer; }
+.lp-login__waiting-actions button:hover { color: #14584A; }
 
 .lp-login__fallback { margin: 20px 0 0; font-size: 13.5px; color: #68807A; }
 .lp-login__fallback button { font: inherit; color: #14584A; background: none; border: none;

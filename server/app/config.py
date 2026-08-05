@@ -39,6 +39,10 @@ STATIC_DIR: str = os.getenv("STATIC_DIR", "")
 # Токен бота от @BotFather. Пусто — вход через Telegram выключен (работает обычный
 # вход по имени, пространство = имя в пути).
 TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+# Имя бота без «@» — нужно кнопке Telegram Login Widget на странице входа
+# (в браузере, вне Web App). Домен сайта должен быть задан боту через /setdomain
+# у @BotFather, иначе виджет не отдаст данные.
+TELEGRAM_BOT_USERNAME: str = os.getenv("TELEGRAM_BOT_USERNAME", "").strip().lstrip("@")
 # Секрет для подписи собственного JWT (HS256). В проде обязательно заменить.
 JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me-in-production")
 # Срок жизни выданного JWT.

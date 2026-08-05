@@ -57,6 +57,42 @@ def validate_init_data(init_data: str, bot_token: str, max_age: int = 0) -> dict
     return user
 
 
+# ---------- Telegram Login Widget (вход в обычном браузере) ----------
+
+def validate_login_widget(data: dict, bot_token: str, max_age: int = 0) -> dict:
+    """Проверяет подпись кнопки Telegram Login Widget и возвращает пользователя.
+
+    Подпись отличается от Web App: секрет — SHA256(bot_token) (а не
+    HMAC(bot_token, "WebAppData")), данные приходят плоским объектом, а не
+    query-строкой. Остальное то же — HMAC-SHA256 по строке «ключ=значение»,
+    отсортированной по ключу.
+    """
+    if not bot_token:
+        raise AuthError("Telegram-логин не настроен")
+    pairs = {k: v for k, v in data.items() if k != "hash" and v is not None}
+    received_hash = data.get("hash")
+    if not received_hash:
+        raise AuthError("В данных виджета нет hash")
+
+    data_check_string = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
+    secret_key = hashlib.sha256(bot_token.encode()).digest()
+    calc_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(calc_hash, str(received_hash)):
+        raise AuthError("Подпись виджета не совпала")
+
+    if max_age > 0:
+        try:
+            auth_date = int(data.get("auth_date", 0))
+        except (TypeError, ValueError):
+            auth_date = 0
+        if auth_date > 0 and (time.time() - auth_date) > max_age:
+            raise AuthError("Данные входа устарели")
+
+    if "id" not in data:
+        raise AuthError("В данных виджета нет пользователя")
+    return {k: v for k, v in data.items() if k != "hash"}
+
+
 # ---------- JWT (HS256) ----------
 
 def _b64url(raw: bytes) -> str:

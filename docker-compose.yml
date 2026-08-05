@@ -24,6 +24,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/fin_reports.db}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     volumes:
       - app_data:/data

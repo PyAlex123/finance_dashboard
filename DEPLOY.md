@@ -93,12 +93,21 @@ location /dashboards/ {
 2. `/setdescription` — описание бота.
 3. `/setmenubutton` → выбрать бота → текст «Открыть приложение» → URL
    `https://<домен>/dashboards/`. Одна кнопка, ведёт в Web App.
+4. **`/setdomain` → выбрать бота → `grammerce.io`.** Обязательно для кнопки
+   «Войти через Telegram» на странице `/dashboards/login` (Login Widget в обычном
+   браузере). Без домена виджет молча не отдаёт данные. Имя бота без «@» положить
+   в `.env.docker` (`TELEGRAM_BOT_USERNAME=financePro`) — фронт берёт его из
+   `/dashboards/api/config`, пересборка фронта при смене бота не нужна.
 
 ## 5. Проверка на реальном примере
 
-- Открыть бота в Telegram → кнопка меню → грузится `…/dashboards`, вход автоматический.
+- Открыть бота в Telegram → кнопка меню → грузится `…/dashboards`, вход автоматический
+  (лендинг внутри Telegram не показывается).
 - У пользователя своя учётка (`tg:<id>`, ник виден), данные сохраняются на сервере.
 - Второй Telegram-аккаунт → отдельные данные. Проверить мобильную вёрстку и офлайн.
+- В браузере: `https://<домен>/dashboards/` — лендинг, `…/dashboards/login` →
+  «Войти через Telegram» → кабинет. Прямые ссылки `…/login`, `…/privacy`, `…/terms`,
+  `…/app` и F5 на них должны открываться (SPA-fallback на стороне FastAPI).
 
 ---
 
@@ -112,6 +121,7 @@ location /dashboards/ {
 | `APP_PORT` | локальный порт контейнера | `8090` |
 | `DATABASE_URL` | SQLite в томе | `sqlite:////data/fin_reports.db` |
 | `TELEGRAM_BOT_TOKEN` | токен бота (пусто = вход выкл.) | `123:ABC…` |
+| `TELEGRAM_BOT_USERNAME` | имя бота для кнопки входа в браузере (без «@») | `financePro` |
 | `JWT_SECRET` | секрет JWT (сменить!) | `openssl rand -hex 32` |
 
 ## Данные пользователей и отчёты

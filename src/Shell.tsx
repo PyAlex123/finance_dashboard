@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getUsername, setUsername as persistUsername, clearUsername } from './features/session/session'
-import { connectBackend, connectTelegram, disconnectBackend } from './data/backend'
+import { connectBackend, connectTelegram, disconnectBackend, type TelegramSession } from './data/backend'
 import { isTelegram, initTelegramUI, telegramInitData } from './features/session/telegram'
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
 import AdminUsers from './features/admin/AdminUsers'
+import Landing from './features/landing/Landing'
+import LegalPage from './features/landing/LegalPage'
+import { navigate, useRoute } from './routes'
 import App from './App'
 import PlApp from './features/pnl/PlApp'
 import BsApp from './features/bs/BsApp'
@@ -12,9 +15,11 @@ import BsApp from './features/bs/BsApp'
 // В Telegram вход автоматический (по id) — «Выйти» не показываем.
 const inTelegram = isTelegram()
 
-// Оболочка-маршрутизатор экранов: вход → выбор модуля → рабочая область.
+// Оболочка: публичные страницы (лендинг, вход, юр-тексты) и кабинет в одном SPA.
+// Внутри Telegram Web App путь не имеет значения — там сразу кабинет с автовходом.
 // Юзернейм запоминается (localStorage); модуль выбирается заново каждую сессию.
 export default function Shell() {
+  const route = useRoute()
   const [username, setUser] = useState<string | null>(() => getUsername())
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined)
   const [workspace, setWorkspace] = useState<string | undefined>(undefined)
@@ -31,10 +36,7 @@ export default function Shell() {
         initTelegramUI()
         const session = await connectTelegram(telegramInitData())
         if (session && !cancelled) {
-          setUser(session.name) // авто-вход: экран входа пропускаем
-          setPhotoUrl(session.photoUrl)
-          setWorkspace(session.workspace)
-          setIsAdmin(!!session.isAdmin)
+          applySession(session) // авто-вход: экран входа пропускаем
           return
         }
       }
@@ -46,11 +48,33 @@ export default function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Кабинет без входа — отправляем на страницу входа (прямая ссылка, выход в
+  // другой вкладке). В Telegram вход идёт сам, редирект там не нужен.
+  useEffect(() => {
+    if (inTelegram) return
+    if (route === 'app' && !username) navigate('/login')
+    if (route === 'login' && username) navigate('/app')
+  }, [route, username])
+
+  function applySession(session: TelegramSession) {
+    setUser(session.name)
+    setPhotoUrl(session.photoUrl)
+    setWorkspace(session.workspace)
+    setIsAdmin(!!session.isAdmin)
+  }
+
   function login(name: string) {
     persistUsername(name)
     setUser(name)
     void connectBackend(name)
+    navigate('/app')
   }
+
+  const loginTelegram = useCallback((session: TelegramSession) => {
+    applySession(session)
+    navigate('/app')
+  }, [])
+
   function logout() {
     disconnectBackend()
     clearUsername()
@@ -60,13 +84,21 @@ export default function Shell() {
     setIsAdmin(false)
     setModule(null)
     setAdmin(false)
+    navigate('/')
   }
 
   // «Выйти» доступно только вне Telegram (в браузере/LAN). В Telegram — undefined,
   // и кнопка не рендерится (в модулях она уже под `{onLogout && …}`).
   const onLogout = inTelegram ? undefined : logout
 
-  if (!username) return <LoginScreen onLogin={login} />
+  if (!inTelegram) {
+    if (route === 'landing') return <Landing loggedIn={!!username} />
+    if (route === 'privacy') return <LegalPage kind="privacy" />
+    if (route === 'terms') return <LegalPage kind="terms" />
+    if (route === 'login' || !username) return <LoginScreen onLogin={login} onSession={loginTelegram} />
+  }
+
+  if (!username) return <LoginScreen onLogin={login} onSession={loginTelegram} />
   if (admin) return <AdminUsers onBack={() => setAdmin(false)} />
   if (!module) {
     return (

@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,11 +22,11 @@ from sqlalchemy.orm import Session
 from . import models
 from .auth import (
     AuthError, display_name, jwt_decode, jwt_encode, user_fields, validate_init_data,
-    workspace_for,
+    validate_login_widget, workspace_for,
 )
 from .config import (
     ADMIN_TG_IDS, BASE_PATH, CORS_ORIGINS, JWT_SECRET, JWT_TTL_SECONDS, STATIC_DIR,
-    TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE,
+    TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME, TELEGRAM_INITDATA_MAX_AGE,
 )
 from .db import Base, engine, get_session
 
@@ -82,6 +83,17 @@ class TelegramAuthIn(BaseModel):
     initData: str
 
 
+@api.get("/config")
+def public_config() -> dict:
+    """Публичные настройки страницы входа: какой бот у кнопки Telegram и включён
+    ли вход через Google. Отдаём в рантайме, чтобы смена бота не требовала
+    пересборки фронта."""
+    return {
+        "telegramBot": TELEGRAM_BOT_USERNAME if TELEGRAM_BOT_TOKEN else "",
+        "googleEnabled": False,
+    }
+
+
 @api.post("/auth/telegram")
 def auth_telegram(body: TelegramAuthIn, db: Session = Depends(get_session)) -> dict:
     if not TELEGRAM_BOT_TOKEN:
@@ -90,6 +102,31 @@ def auth_telegram(body: TelegramAuthIn, db: Session = Depends(get_session)) -> d
         user = validate_init_data(body.initData, TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE)
     except AuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
+    return _issue_session(db, user)
+
+
+@api.post("/auth/telegram-widget")
+async def auth_telegram_widget(request: Request, db: Session = Depends(get_session)) -> dict:
+    """Вход через Telegram Login Widget (обычный браузер, вне Web App).
+
+    Тело — объект, который виджет отдал в data-onauth (id, auth_date, hash и
+    поля профиля); состав полей задаёт Telegram, поэтому принимаем как есть и
+    проверяем подпись по всему объекту.
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        raise HTTPException(status_code=503, detail="Telegram-логин не настроен на сервере")
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Ожидался объект с данными виджета")
+    try:
+        user = validate_login_widget(body, TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE)
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    return _issue_session(db, user)
+
+
+def _issue_session(db: Session, user: dict) -> dict:
+    """Общий хвост обоих входов: регистрация/обновление пользователя и свой JWT."""
     workspace = workspace_for(user)
     name = display_name(user)
     fields = user_fields(user)
@@ -328,8 +365,29 @@ def admin_users(
 
 app.include_router(api)
 
+class SpaStaticFiles(StaticFiles):
+    """Статика с SPA-fallback: несуществующий путь отдаёт index.html.
+
+    Маршруты фронта настоящие (/login, /privacy, /terms, /app), а файлов под
+    ними нет — без этого прямая ссылка и F5 давали бы 404. API-роуты сюда не
+    попадают: они зарегистрированы до mount.
+    """
+
+    async def get_response(self, path: str, scope):  # noqa: ANN001 — сигнатура Starlette
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as e:
+            # Starlette не возвращает 404, а бросает его — ловим и отдаём оболочку.
+            if e.status_code != 404:
+                raise
+            return await super().get_response("index.html", scope)
+        if response.status_code == 404:
+            return await super().get_response("index.html", scope)
+        return response
+
+
 # Статика собранного фронта под тем же префиксом (один контейнер: FastAPI отдаёт и
 # SPA, и API). Монтируется ПОСЛЕ API-роутов, чтобы они имели приоритет. html=True —
 # отдаёт index.html на запрос каталога. STATIC_DIR пуст → режим «только API».
 if STATIC_DIR and os.path.isdir(STATIC_DIR):
-    app.mount(BASE_PATH or "/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+    app.mount(BASE_PATH or "/", SpaStaticFiles(directory=STATIC_DIR, html=True), name="static")

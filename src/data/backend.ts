@@ -73,6 +73,64 @@ export async function connectTelegram(initData: string): Promise<TelegramSession
   }
 }
 
+/** Данные, которые отдаёт кнопка Telegram Login Widget (уже подписанные ботом). */
+export interface TelegramWidgetUser {
+  id: number
+  auth_date: number
+  hash: string
+  first_name?: string
+  last_name?: string
+  username?: string
+  photo_url?: string
+}
+
+/**
+ * Вход через Telegram в обычном браузере (Login Widget). Отличается от Web App
+ * только форматом подписи — её проверяет сервер; здесь просто передаём объект
+ * виджета как есть и запоминаем ту же сессию tg:<id> + JWT.
+ */
+export async function connectTelegramWidget(
+  user: TelegramWidgetUser,
+): Promise<TelegramSession | null> {
+  if (!REMOTE) return null
+  try {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/telegram-widget`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(user),
+    })
+    if (!res.ok) return null
+    const { token, workspace, name, photoUrl, username, isAdmin } = (await res.json()) as {
+      token: string; workspace: string; name: string
+      photoUrl?: string | null; username?: string | null; isAdmin?: boolean
+    }
+    session = { owner: workspace, token }
+    return {
+      name, workspace, isAdmin: !!isAdmin,
+      photoUrl: photoUrl ?? undefined, username: username ?? undefined,
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Публичная конфигурация входа с сервера (имя бота задаётся переменной окружения). */
+export interface PublicConfig {
+  telegramBot: string
+  googleEnabled: boolean
+}
+
+export async function fetchPublicConfig(): Promise<PublicConfig | null> {
+  if (!REMOTE) return null
+  try {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/config`)
+    if (!res.ok) return null
+    return (await res.json()) as PublicConfig
+  } catch {
+    return null
+  }
+}
+
 /**
  * Подключить конкретный отчёт (его снимок) как активное хранилище. Устойчиво:
  * API + локальное зеркало IndexedDB на этот ключ. Перед сменой флашим отложенное

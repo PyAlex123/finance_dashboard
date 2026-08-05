@@ -16,10 +16,18 @@ os.environ["JWT_SECRET"] = "test-secret"
 os.environ.setdefault("DATABASE_URL", "sqlite:///./_authtest.db")
 
 from app.auth import (  # noqa: E402
-    AuthError, jwt_decode, jwt_encode, validate_init_data, workspace_for,
+    AuthError, jwt_decode, jwt_encode, validate_init_data, validate_login_widget, workspace_for,
 )
 
 BOT = "123:TESTTOKEN"
+
+
+def make_widget_data(user: dict, bot: str = BOT, auth_date: int | None = None) -> dict:
+    """Собирает подписанные данные кнопки Login Widget (секрет — SHA256 токена)."""
+    data = {**user, "auth_date": auth_date or int(time.time())}
+    dcs = "\n".join(f"{k}={data[k]}" for k in sorted(data))
+    secret = hashlib.sha256(bot.encode()).digest()
+    return {**data, "hash": hmac.new(secret, dcs.encode(), hashlib.sha256).hexdigest()}
 
 
 def make_init_data(user: dict, bot: str = BOT, auth_date: int | None = None) -> str:
@@ -62,6 +70,40 @@ def test_expired_init_data_rejected():
     init = make_init_data({"id": 42}, auth_date=int(time.time()) - 10_000)
     try:
         validate_init_data(init, BOT, max_age=3600)
+        assert False, "ожидалась AuthError"
+    except AuthError:
+        pass
+
+
+def test_valid_widget_data():
+    user = validate_login_widget(make_widget_data({"id": 42, "first_name": "Алекс"}), BOT)
+    assert user["id"] == 42
+    assert workspace_for(user) == "tg:42"
+    assert "hash" not in user
+
+
+def test_widget_tampered_rejected():
+    data = make_widget_data({"id": 42, "first_name": "Алекс"})
+    data["first_name"] = "Мэллори"  # подпись считалась по прежнему имени
+    try:
+        validate_login_widget(data, BOT)
+        assert False, "ожидалась AuthError"
+    except AuthError:
+        pass
+
+
+def test_widget_wrong_bot_token_rejected():
+    try:
+        validate_login_widget(make_widget_data({"id": 42}, bot="999:OTHER"), BOT)
+        assert False, "ожидалась AuthError"
+    except AuthError:
+        pass
+
+
+def test_widget_expired_rejected():
+    data = make_widget_data({"id": 42}, auth_date=int(time.time()) - 10_000)
+    try:
+        validate_login_widget(data, BOT, max_age=3600)
         assert False, "ожидалась AuthError"
     except AuthError:
         pass
@@ -112,6 +154,26 @@ def test_endpoint_and_workspace_guard():
 
         # битый initData — 401
         assert c.post("/api/auth/telegram", json={"initData": "user=%7B%7D&hash=bad"}).status_code == 401
+
+
+def test_widget_endpoint_registers_user():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    with TestClient(app) as c:
+        data = make_widget_data({"id": 8, "first_name": "Вика", "username": "vika"})
+        r = c.post("/api/auth/telegram-widget", json=data)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["workspace"] == "tg:8"
+        assert body["name"] == "Вика"
+
+        # выданный токен открывает своё пространство (404 — снимка ещё нет)
+        headers = {"Authorization": f"Bearer {body['token']}"}
+        assert c.get("/api/snapshot/tg:8", headers=headers).status_code == 404
+
+        # подделанные данные — 401
+        assert c.post("/api/auth/telegram-widget", json={**data, "id": 9}).status_code == 401
 
 
 if __name__ == "__main__":

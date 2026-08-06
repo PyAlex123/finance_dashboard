@@ -17,10 +17,15 @@ services:
     build:
       context: .
       args:
-        VITE_BASE: ${VITE_BASE:-/dashboards/}
-        VITE_API_URL: ${VITE_API_URL:-/dashboards}
+        # Корень домена (finlo.uz). Для подпути — /dashboards/ и /dashboards.
+        # VITE_API_URL пустым НЕ оставлять: пустое значение = локальный режим
+        # (IndexedDB), сервер перестаёт использоваться. В корне это «/».
+        VITE_BASE: ${VITE_BASE:-/}
+        VITE_API_URL: ${VITE_API_URL:-/}
     environment:
-      BASE_PATH: ${BASE_PATH:-/dashboards}
+      # Пустой BASE_PATH = приложение в корне домена. Здесь именно `:-`, поэтому
+      # «BASE_PATH=» в .env.docker (пустая строка) тоже даёт корень.
+      BASE_PATH: ${BASE_PATH:-}
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/fin_reports.db}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
@@ -43,10 +48,11 @@ services:
     command: ["python", "-m", "app.bot"]
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      WEBAPP_URL: ${WEBAPP_URL:-https://grammerce.io/dashboards/}
+      WEBAPP_URL: ${WEBAPP_URL:-https://finlo.uz/}
       # Подтверждение входа с сайта: бот стучится в API сервиса `app` по внутренней
-      # сети compose и подписывает запрос общим JWT_SECRET.
-      BASE_PATH: ${BASE_PATH:-/dashboards}
+      # сети compose и подписывает запрос общим JWT_SECRET. BASE_PATH должен
+      # совпадать с сервисом app — из него собирается адрес внутреннего API.
+      BASE_PATH: ${BASE_PATH:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     depends_on:
       - app

@@ -1,19 +1,22 @@
-# Развёртывание как Telegram Web App на подпути
+# Развёртывание (сайт finlo.uz + Telegram Web App)
 
-Один контейнер: **FastAPI отдаёт собранный фронт + API + SQLite**. Ставится на подпуть
-существующего домена (напр. `https://grammerce.io/dashboards`), за уже работающим
-**nginx** с TLS. Вход — через Telegram (у каждого своя учётка по Telegram id).
+Один контейнер: **FastAPI отдаёт собранный фронт + API + SQLite**, за уже работающим
+**nginx** с TLS. Основной адрес — корень домена `https://finlo.uz/`; тот же контейнер
+раньше жил на подпути `grammerce.io/dashboards` (вариант поддерживается, см. ниже).
+Вход — через Telegram (Web App внутри мессенджера, через бота — в браузере) и Google.
 
 ```
-Telegram → кнопка меню → https://<домен>/dashboards/
-  nginx (TLS)  location /dashboards/ → 127.0.0.1:8090
+Браузер → https://finlo.uz/            Telegram → кнопка меню → https://finlo.uz/
+  nginx (TLS)  location / → 127.0.0.1:8090
     контейнер app (FastAPI):
-      /dashboards/          → SPA (StaticFiles)
-      /dashboards/api/...   → API (snapshot, auth/telegram, health)
+      /            → SPA: лендинг, /login, /privacy, /terms, /app
+      /api/...     → API (snapshot, auth/*, config, health)
       SQLite: /data/fin_reports.db (том app_data)
+  контейнер bot: long-polling Telegram, подтверждает вход с сайта
 ```
-Подпуть согласован end-to-end: `BASE_PATH`/`VITE_BASE`/`VITE_API_URL`. Префикс в nginx
-**не срезается** (`proxy_pass` без завершающего `/`).
+Место размещения согласовано end-to-end: `BASE_PATH`/`VITE_BASE`/`VITE_API_URL`.
+В корне это пусто / `/` / `/`; на подпути — `/dashboards`, `/dashboards/`, `/dashboards`.
+`VITE_API_URL` пустым не бывает: пустое значение переводит фронт в локальный режим.
 
 ---
 
@@ -21,12 +24,13 @@ Telegram → кнопка меню → https://<домен>/dashboards/
 
 | Что | Значение |
 |---|---|
-| Домен / подпуть | `https://grammerce.io/dashboards/` |
+| Домен | `https://finlo.uz/` (старый `grammerce.io/dashboards` — редирект сюда) |
+| IP сервера | `46.8.194.38` — тот же, что у grammerce.io: сайты разделяет `server_name` |
 | **Папка проекта на сервере** | **`/opt/finance_dashboard`** |
 | Ветка, которую тянет сервер | `main` (`origin` = github.com/PyAlex123/finance_dashboard) |
 | Порт контейнера (только localhost) | `127.0.0.1:8090` |
 | Имя контейнера / проекта / образа | `finance-dashboard-app` / `finance-dashboard` / `finance-dashboard-app` |
-| Reverse-proxy | nginx, конфиг `/etc/nginx/sites-available/grammerce.io` (`location /dashboards/`) |
+| Reverse-proxy | nginx: `/etc/nginx/sites-available/finlo.uz` (`location /`) и `…/grammerce.io` (редирект `/dashboards`) |
 | Бот | @financePro (кнопка меню Web App в @BotFather) |
 
 **Обновить прод (стандартная последовательность):**
@@ -35,8 +39,9 @@ cd /opt/finance_dashboard
 git pull origin main
 docker compose --env-file .env.docker up -d --build     # из этой папки, БЕЗ -p
 docker compose --env-file .env.docker logs -f app        # логи (Ctrl+C для выхода)
-curl -s http://127.0.0.1:8090/dashboards/api/health      # {"status":"ok","telegramAuth":true}
+curl -s http://127.0.0.1:8090/api/health                 # {"status":"ok","telegramAuth":true}
 ```
+(на подпути health был `…:8090/dashboards/api/health` — путь повторяет `BASE_PATH`)
 
 **НЕЛЬЗЯ (иначе ломается ЧУЖОЙ сайт на этом же сервере):**
 - не использовать флаг `-p` у `docker compose` (перебьёт имя проекта);
@@ -63,28 +68,54 @@ cp .env.docker.example .env.docker
 ```bash
 docker compose --env-file .env.docker up -d --build
 docker compose --env-file .env.docker logs -f app      # логи
-curl -s http://127.0.0.1:8090/dashboards/api/health   # {"status":"ok",...}
+curl -s http://127.0.0.1:8090/api/health              # {"status":"ok",...}
 ```
 
 Контейнер слушает `127.0.0.1:8090` (наружу закрыт — проксирует nginx).
 
-## 3. nginx: маршрут /dashboards
+## 3. nginx: сайт finlo.uz (и переезд с /dashboards)
 
-В `/etc/nginx/sites-available/<домен>`, внутри блока `server { listen 443 ssl; ... }`
-добавить (существующий `location /` не трогать):
+Сервер и IP те же — добавляется второй виртуальный хост. Готовые файлы лежат в
+[deploy/nginx/](deploy/nginx/): `finlo.uz.conf` (новый сайт) и `grammerce.io.conf`
+(в нём `/dashboards` заменён редиректом на finlo.uz).
 
-```nginx
-location = /dashboards { return 308 /dashboards/; }
-location /dashboards/ {
-    proxy_pass http://127.0.0.1:8090;   # без завершающего слэша — префикс /dashboards сохраняется
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-Применить: `sudo nginx -t && sudo systemctl reload nginx`.
-Проверить: `curl -I https://<домен>/dashboards/` → 200.
+**Порядок важен: сначала DNS, потом nginx на :80, потом сертификат, потом пересборка.**
+
+1. **DNS у регистратора** (после регистрации домена): две A-записи на `46.8.194.38` —
+   `@` и `www`. Проверить: `dig +short finlo.uz` → адрес сервера.
+2. **Сайт на :80** (TLS ещё нет — блок только `listen 80`, иначе `nginx -t` упадёт):
+   ```bash
+   sudo cp /opt/finance_dashboard/deploy/nginx/finlo.uz.conf /etc/nginx/sites-available/finlo.uz
+   sudo ln -s /etc/nginx/sites-available/finlo.uz /etc/nginx/sites-enabled/finlo.uz
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+3. **Сертификат** — certbot сам допишет TLS-секцию и редирект с http:
+   ```bash
+   sudo certbot --nginx -d finlo.uz -d www.finlo.uz
+   ```
+4. **Приложение в корень домена.** В `/opt/finance_dashboard/.env.docker`:
+   ```ini
+   BASE_PATH=
+   VITE_BASE=/
+   VITE_API_URL=/
+   WEBAPP_URL=https://finlo.uz/
+   ```
+   (`VITE_API_URL` пустым не оставлять — это локальный режим без сервера!)
+   Затем пересобрать: `docker compose --env-file .env.docker up -d --build`.
+   Бот при старте сам переставит кнопку меню на новый URL.
+5. **Старые ссылки.** В `/etc/nginx/sites-available/grammerce.io` заменить два
+   `location /dashboards…` на редирект (готовый вариант — в `deploy/nginx/grammerce.io.conf`):
+   ```nginx
+   location = /dashboards { return 301 https://finlo.uz/; }
+   location /dashboards/ { rewrite ^/dashboards/(.*)$ https://finlo.uz/$1 permanent; }
+   ```
+   `sudo nginx -t && sudo systemctl reload nginx`.
+
+Проверка: `curl -I https://finlo.uz/` → 200, `curl -s https://finlo.uz/api/health` → `ok`,
+`curl -I https://grammerce.io/dashboards/` → 301 на finlo.uz.
+
+Данные пользователей при переезде не трогаются: они привязаны к `tg:<id>`/`g:<sub>`,
+а не к адресу сайта.
 
 ## 4. Telegram-бот (@BotFather)
 
@@ -92,7 +123,8 @@ location /dashboards/ {
    пересобрать: `docker compose --env-file .env.docker up -d --build`.
 2. `/setdescription` — описание бота.
 3. `/setmenubutton` → выбрать бота → текст «Открыть приложение» → URL
-   `https://<домен>/dashboards/`. Одна кнопка, ведёт в Web App.
+   `https://finlo.uz/`. Одна кнопка, ведёт в Web App. (Кнопку меню бот и сам
+   переставляет при старте — из `WEBAPP_URL`.)
 
 Больше у бота ничего настраивать не нужно: вход с сайта работает через него же —
 кнопка «Войти через Telegram» открывает `t.me/<бот>?start=<код>`, бот показывает
@@ -106,31 +138,31 @@ location /dashboards/ {
 
 1. [console.cloud.google.com](https://console.cloud.google.com) → **New project** → `finlo`.
 2. **APIs & Services → OAuth consent screen** → тип **External** → название `finlo`,
-   почта поддержки, домен `grammerce.io`, ссылки на политику и условия:
-   `https://grammerce.io/dashboards/privacy` и `https://grammerce.io/dashboards/terms`
-   (страницы уже опубликованы).
+   почта поддержки, домен `finlo.uz`, ссылки на политику и условия:
+   `https://finlo.uz/privacy` и `https://finlo.uz/terms` (страницы уже опубликованы).
 3. Scopes — только `openid`, `email`, `profile`. Это несенситивные скоупы,
    проверка приложения Google не требуется.
 4. **Credentials → Create credentials → OAuth client ID → Web application**:
-   - Authorized JavaScript origins: `https://grammerce.io`
-     (для локальной отладки можно добавить `http://localhost:5173`);
+   - Authorized JavaScript origins: `https://finlo.uz` (и `https://www.finlo.uz`,
+     если планируете вход с www; для локальной отладки — `http://localhost:5173`);
    - Authorized redirect URIs — не нужны: используется ID-токен, а не redirect-поток.
 5. Скопировать **Client ID** → `GOOGLE_CLIENT_ID=…` в `.env.docker` → пересобрать.
    Client secret на сервере не хранится и не нужен.
 
-Проверка: `curl -s http://127.0.0.1:8090/dashboards/api/config` → `googleEnabled: true`.
+Проверка: `curl -s http://127.0.0.1:8090/api/config` → `googleEnabled: true`.
 
 ## 6. Проверка на реальном примере
 
-- Открыть бота в Telegram → кнопка меню → грузится `…/dashboards`, вход автоматический
-  (лендинг внутри Telegram не показывается).
+- Открыть бота в Telegram → кнопка меню → грузится `https://finlo.uz/`, вход
+  автоматический (лендинг внутри Telegram не показывается).
 - У пользователя своя учётка (`tg:<id>`, ник виден), данные сохраняются на сервере.
 - Второй Telegram-аккаунт → отдельные данные. Проверить мобильную вёрстку и офлайн.
-- В браузере: `https://<домен>/dashboards/` — лендинг, `…/dashboards/login` →
+- В браузере: `https://finlo.uz/` — лендинг, `https://finlo.uz/login` →
   «Войти через Telegram» → открывается бот → кнопка «Войти с компьютера» → вкладка
   входит сама (код на странице и в сообщении должны совпасть). Прямые ссылки
-  `…/login`, `…/privacy`, `…/terms`, `…/app` и F5 на них должны открываться
+  `/login`, `/privacy`, `/terms`, `/app` и F5 на них должны открываться
   (SPA-fallback на стороне FastAPI).
+- Старый адрес `https://grammerce.io/dashboards/` отвечает 301 на finlo.uz.
 - Логи бота при этом: `docker compose --env-file .env.docker logs -f bot`.
 
 ---
@@ -139,9 +171,9 @@ location /dashboards/ {
 
 | Переменная | Назначение | Пример |
 |---|---|---|
-| `BASE_PATH` | подпуть на бэкенде | `/dashboards` |
-| `VITE_BASE` | база ассетов фронта (со слэшем) | `/dashboards/` |
-| `VITE_API_URL` | база API на фронте | `/dashboards` |
+| `BASE_PATH` | подпуть на бэкенде (пусто = корень домена) | пусто |
+| `VITE_BASE` | база ассетов фронта (со слэшем) | `/` |
+| `VITE_API_URL` | база API на фронте (**пустым не оставлять!**) | `/` |
 | `APP_PORT` | локальный порт контейнера | `8090` |
 | `DATABASE_URL` | SQLite в томе | `sqlite:////data/fin_reports.db` |
 | `TELEGRAM_BOT_TOKEN` | токен бота (пусто = вход выкл.) | `123:ABC…` |

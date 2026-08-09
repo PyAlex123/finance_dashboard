@@ -1,10 +1,11 @@
 """Минимальный процесс-бот Telegram (второй сервис в том же compose).
 
 Задачи (без бизнес-логики — весь кабинет в Web App):
-  1. на `/start` отвечать сообщением с inline-кнопкой Web App «Открыть платформу»;
-  2. поставить левую кнопку-меню чата «Кабинет», открывающую тот же Web App;
-  3. подтверждать вход с компьютера: `/start <nonce>` (ссылка с сайта) → кнопка
-     «Войти с компьютера» → сообщаем об этом API, вкладка сайта сама входит.
+  1. на `/start` (в т.ч. `/start register` по ссылке с сайта) просить у API
+     одноразовую ссылку входа и присылать её кнопкой — клик открывает браузер,
+     где пользователь оказывается уже залогиненным;
+  2. рядом — кнопка Web App, чтобы открыть кабинет прямо в Telegram;
+  3. поставить левую кнопку-меню чата «Кабинет», открывающую тот же Web App.
 
 Реализовано на stdlib (`urllib`) — без новых зависимостей. Long-polling getUpdates:
 одному токену — один потребитель обновлений, поэтому вебхук перед стартом снимаем.
@@ -14,7 +15,6 @@ INTERNAL_API_URL и JWT_SECRET — последним подписываем з�
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 import urllib.error
@@ -55,91 +55,63 @@ def set_menu_button() -> None:
     print("setChatMenuButton:", r.get("ok"), r.get("description", ""), flush=True)
 
 
-def send_start(chat_id: int) -> None:
-    """Ответ на /start: приветствие + inline-кнопка Web App «Открыть платформу»."""
-    api("sendMessage", {
-        "chat_id": chat_id,
-        "text": (
-            "Добро пожаловать в финансовую платформу.\n"
-            "Нажмите кнопку ниже, чтобы открыть кабинет, или используйте кнопку "
-            "«Кабинет» слева от поля ввода."
-        ),
-        "reply_markup": {
-            "inline_keyboard": [[
-                {"text": "🚀 Открыть платформу", "web_app": {"url": WEBAPP_URL}}
-            ]]
-        },
-    })
+def issue_login_link(user: dict) -> dict | None:
+    """Попросить у своего API одноразовую ссылку входа для этого пользователя.
 
-
-def approve_login(nonce: str, user: dict) -> bool:
-    """Сообщить своему API, что вход подтверждён. Эндпоинт доступен снаружи, поэтому
-    подписываем запрос коротким JWT на общем JWT_SECRET (`bot: true`)."""
+    Эндпоинт доступен снаружи (через nginx), поэтому подписываем запрос коротким
+    JWT на общем JWT_SECRET (`bot: true`) — отдельного секрета заводить не нужно.
+    """
     token = jwt_encode({"bot": True}, JWT_SECRET, 60)
-    url = f"{INTERNAL_API_URL.rstrip('/')}/api/auth/tg-link/approve"
-    data = json.dumps({"nonce": nonce, "user": user}).encode()
+    url = f"{INTERNAL_API_URL.rstrip('/')}/api/auth/telegram/issue"
+    payload = {
+        "telegram_id": str(user.get("id")),
+        "first_name": user.get("first_name"),
+        "last_name": user.get("last_name"),
+        "username": user.get("username"),
+    }
     req = urllib.request.Request(
-        url, data=data,
+        url, data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read().decode()).get("status") in {"ok", "already"}
-    except Exception as e:  # noqa: BLE001 — заявка могла истечь, скажем об этом пользователю
-        print("approve_login:", e, flush=True)
-        return False
+            return json.loads(resp.read().decode())
+    except Exception as e:  # noqa: BLE001 — сеть/API недоступны: скажем пользователю
+        print("issue_login_link:", e, flush=True)
+        return None
 
 
-def send_login_request(chat_id: int, nonce: str) -> None:
-    """Ответ на переход по ссылке с сайта: спросить подтверждение входа."""
-    code = hashlib.sha256(nonce.encode()).hexdigest()[:4].upper()
+def send_login_link(chat_id: int, user: dict) -> None:
+    """Ответ на /start: ссылка для входа с компьютера.
+
+    Ссылку выпускаем на КАЖДЫЙ /start: она одноразовая и живёт минуты, поэтому
+    старая кнопка в истории чата всегда будет «устаревшей» — это ожидаемо.
+    """
+    link = issue_login_link(user)
+    if not link:
+        api("sendMessage", {
+            "chat_id": chat_id,
+            "text": "Не удалось подготовить вход. Попробуйте ещё раз через минуту.",
+        })
+        return
     api("sendMessage", {
         "chat_id": chat_id,
         "text": (
-            "Вход с компьютера\n\n"
-            f"Код на сайте: {code}\n"
-            "Если код совпадает — подтвердите вход кнопкой ниже.\n\n"
-            "Если вы сейчас никуда не входили — просто закройте этот чат "
-            "и ничего не нажимайте."
+            "Вход в finlo\n\n"
+            "Нажмите кнопку ниже — откроется браузер, и вы сразу окажетесь в кабинете.\n"
+            "Ссылка одноразовая и действует несколько минут."
         ),
         "reply_markup": {
-            "inline_keyboard": [[
-                {"text": "✅ Войти с компьютера", "callback_data": f"login:{nonce}"}
-            ]]
+            "inline_keyboard": [
+                [{"text": "🚀 Открыть finlo" if link.get("hasData") else "✅ Начать бесплатно",
+                  "url": link["consumeUrl"]}],
+                [{"text": "📱 Открыть здесь, в Telegram", "web_app": {"url": WEBAPP_URL}}],
+            ]
         },
     })
 
 
-def handle_callback(cb: dict) -> None:
-    data = (cb.get("data") or "").strip()
-    if not data.startswith("login:"):
-        return
-    nonce = data.removeprefix("login:")
-    user = cb.get("from") or {}
-    ok = approve_login(nonce, user)
-    api("answerCallbackQuery", {
-        "callback_query_id": cb["id"],
-        "text": "Готово" if ok else "Срок действия ссылки истёк",
-    })
-    msg = cb.get("message") or {}
-    chat_id = msg.get("chat", {}).get("id")
-    if chat_id is None:
-        return
-    api("editMessageText", {
-        "chat_id": chat_id,
-        "message_id": msg.get("message_id"),
-        "text": (
-            "✅ Вход подтверждён — вернитесь на вкладку в браузере."
-            if ok else
-            "Ссылка устарела. Нажмите «Войти через Telegram» на сайте ещё раз."
-        ),
-    })
-
-
 def handle_update(upd: dict) -> None:
-    if upd.get("callback_query"):
-        handle_callback(upd["callback_query"])
-        return
     msg = upd.get("message") or upd.get("edited_message")
     if not msg:
         return
@@ -147,13 +119,9 @@ def handle_update(upd: dict) -> None:
     chat_id = msg.get("chat", {}).get("id")
     if chat_id is None:
         return
-    # /start с параметром — переход с сайта (подтверждение входа), без — приветствие.
+    # На любой /start (в т.ч. «/start register» с сайта) выдаём свежую ссылку входа.
     if text.startswith("/start"):
-        payload = text.removeprefix("/start").strip()
-        if payload:
-            send_login_request(chat_id, payload)
-        else:
-            send_start(chat_id)
+        send_login_link(chat_id, msg.get("from") or {})
 
 
 def main() -> None:

@@ -8,6 +8,7 @@ import hmac
 import json
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 # окружение до импорта app.config/app.main
@@ -15,6 +16,7 @@ os.environ["TELEGRAM_BOT_TOKEN"] = "123:TESTTOKEN"
 os.environ["TELEGRAM_BOT_USERNAME"] = "testbot"  # чтобы не ходить в getMe
 os.environ["GOOGLE_CLIENT_ID"] = "test-client-id.apps.googleusercontent.com"
 os.environ["JWT_SECRET"] = "test-secret"
+os.environ["WEBAPP_URL"] = "https://finlo.test/"  # из него берётся origin ссылок входа
 os.environ.setdefault("DATABASE_URL", "sqlite:///./_authtest.db")
 
 from app.auth import (  # noqa: E402
@@ -151,54 +153,97 @@ def test_endpoint_and_workspace_guard():
 
 
 def test_tg_link_login_flow():
-    """Вход с сайта через бота: заявка → подтверждение ботом → выдача сессии."""
+    """Вход с компьютера: бот выпускает одноразовую ссылку → переход по ней логинит."""
     from fastapi.testclient import TestClient
-    from app.main import app, login_code
+    from app.main import app
+
+    bot_headers = {"Authorization": f"Bearer {jwt_encode({'bot': True}, 'test-secret', 60)}"}
+    issue_body = {"telegram_id": "8", "first_name": "Вика", "username": "vika"}
+
+    with TestClient(app, follow_redirects=False) as c:
+        # кнопка на сайте ведёт в бота
+        r = c.get("/api/auth/telegram")
+        assert r.status_code == 303
+        assert r.headers["location"] == "https://t.me/testbot?start=register"
+
+        # выпускать ссылки может только бот
+        assert c.post("/api/auth/telegram/issue", json=issue_body).status_code == 401
+        assert c.post(
+            "/api/auth/telegram/issue", json=issue_body,
+            headers={"Authorization": f"Bearer {jwt_encode({'sub': 'tg:8'}, 'test-secret', 60)}"},
+        ).status_code == 401
+
+        issued = c.post("/api/auth/telegram/issue", json=issue_body, headers=bot_headers)
+        assert issued.status_code == 200, issued.text
+        link = issued.json()
+        token = link["token"]
+        # ссылка абсолютная — её открывают из Telegram в браузере
+        assert link["consumeUrl"] == f"https://finlo.test/api/auth/telegram/consume?token={token}"
+        assert link["hasData"] is False  # пользователь ещё не заводился
+
+        # переход по ссылке = вход: токен приезжает во фрагменте
+        r = c.get(f"/api/auth/telegram/consume?token={token}")
+        assert r.status_code == 303, r.text
+        location = r.headers["location"]
+        assert location.startswith("/login#token=")
+        bearer = location.split("#token=")[1].split("&")[0]
+
+        # ссылка одноразовая: повтор уводит на вход с понятной ошибкой
+        again = c.get(f"/api/auth/telegram/consume?token={token}")
+        assert again.status_code == 303
+        assert again.headers["location"] == "/login?error=auth_expired"
+        # неизвестный токен — туда же
+        assert c.get("/api/auth/telegram/consume?token=nope").headers["location"] == "/login?error=auth_expired"
+
+        # выданный Bearer открывает своё пространство и не открывает чужое
+        headers = {"Authorization": f"Bearer {bearer}"}
+        assert c.get("/api/snapshot/tg:8", headers=headers).status_code == 404
+        assert c.get("/api/snapshot/tg:999", headers=headers).status_code == 403
+
+        # профиль по токену — им фронт восстанавливает сессию после перезагрузки
+        me = c.get("/api/auth/me", headers=headers)
+        assert me.status_code == 200, me.text
+        assert me.json()["workspace"] == "tg:8"
+        assert me.json()["name"] == "Вика"
+        assert me.json()["isAdmin"] is False
+        assert c.get("/api/auth/me").status_code == 401
+        assert c.get("/api/auth/me", headers={
+            "Authorization": f"Bearer {jwt_encode({'sub': 'tg:8'}, 'other-secret', 60)}",
+        }).status_code == 401
+
+        # пользователь теперь известен — бот подпишет кнопку иначе
+        assert c.post(
+            "/api/auth/telegram/issue", json=issue_body, headers=bot_headers,
+        ).json()["hasData"] is True
+
+        # старой схемы больше нет
+        assert c.post("/api/auth/tg-link/start").status_code == 404
+        assert c.get("/api/auth/tg-link/whatever").status_code == 404
+
+
+def test_consume_link_expires():
+    """Протухшая ссылка не логинит, даже если ею не пользовались."""
+    from fastapi.testclient import TestClient
+    from app import models
+    from app.db import SessionLocal
+    from app.main import app
 
     bot_headers = {"Authorization": f"Bearer {jwt_encode({'bot': True}, 'test-secret', 60)}"}
 
-    with TestClient(app) as c:
-        started = c.post("/api/auth/tg-link/start")
-        assert started.status_code == 200, started.text
-        link = started.json()
-        nonce = link["nonce"]
-        assert link["url"] == f"https://t.me/testbot?start={nonce}"
-        assert link["code"] == login_code(nonce)  # код на сайте и в боте совпадает
+    with TestClient(app, follow_redirects=False) as c:
+        token = c.post(
+            "/api/auth/telegram/issue", json={"telegram_id": "9"}, headers=bot_headers,
+        ).json()["token"]
 
-        # пока не подтверждено — ждём
-        assert c.get(f"/api/auth/tg-link/{nonce}").json() == {"status": "pending"}
+        db = SessionLocal()
+        row = db.get(models.BotAuthToken, token)
+        row.expires_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1)
+        db.commit()
+        db.close()
 
-        # подтвердить может только бот (подписанный JWT)
-        approve = {"nonce": nonce, "user": {"id": 8, "first_name": "Вика", "username": "vika"}}
-        assert c.post("/api/auth/tg-link/approve", json=approve).status_code == 401
-        assert c.post(
-            "/api/auth/tg-link/approve", json=approve,
-            headers={"Authorization": f"Bearer {jwt_encode({'sub': 'tg:8'}, 'test-secret', 60)}"},
-        ).status_code == 401
-        assert c.post("/api/auth/tg-link/approve", json=approve, headers=bot_headers).status_code == 200
-
-        # теперь сайт получает сессию
-        r = c.get(f"/api/auth/tg-link/{nonce}")
-        assert r.status_code == 200, r.text
-        body = r.json()
-        assert body["workspace"] == "tg:8"
-        assert body["name"] == "Вика"
-
-        # заявка одноразовая: второй раз ничего не отдаёт
-        assert c.get(f"/api/auth/tg-link/{nonce}").status_code == 404
-
-        # выданный токен открывает своё пространство (404 — снимка ещё нет)
-        headers = {"Authorization": f"Bearer {body['token']}"}
-        assert c.get("/api/snapshot/tg:8", headers=headers).status_code == 404
-        # чужое пространство — 403
-        assert c.get("/api/snapshot/tg:999", headers=headers).status_code == 403
-
-        # неизвестный код — 404
-        assert c.get("/api/auth/tg-link/nope").status_code == 404
-        assert c.post(
-            "/api/auth/tg-link/approve", json={"nonce": "nope", "user": {"id": 1}},
-            headers=bot_headers,
-        ).status_code == 404
+        r = c.get(f"/api/auth/telegram/consume?token={token}")
+        assert r.status_code == 303
+        assert r.headers["location"] == "/login?error=auth_expired"
 
 
 def test_google_endpoint_and_workspace_guard():

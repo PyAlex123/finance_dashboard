@@ -1,4 +1,4 @@
-"""Тесты процесса-бота: подтверждение входа с сайта. Запуск (из папки server):
+"""Тесты процесса-бота: выдача ссылки для входа с компьютера. Запуск (из папки server):
     ./.venv/Scripts/python.exe tests/test_bot.py
 
 Сеть не трогаем: подменяем `api` (Bot API) и `urlopen` (вызов своего же API).
@@ -8,13 +8,15 @@ import os
 
 # окружение до импорта app.config/app.bot
 os.environ["TELEGRAM_BOT_TOKEN"] = "123:TESTTOKEN"
-os.environ["WEBAPP_URL"] = "https://example.test/dashboards/"
+os.environ["WEBAPP_URL"] = "https://finlo.test/"
 os.environ["JWT_SECRET"] = "test-secret"
-os.environ["INTERNAL_API_URL"] = "http://app:8000/dashboards"
+os.environ["INTERNAL_API_URL"] = "http://app:8000"
 os.environ.setdefault("DATABASE_URL", "sqlite:///./_bottest.db")
 
 from app import bot  # noqa: E402
 from app.auth import jwt_decode  # noqa: E402
+
+USER = {"id": 8, "first_name": "Вика", "username": "vika"}
 
 
 class Recorder:
@@ -34,96 +36,100 @@ class Recorder:
         return [m for m, _ in self.calls]
 
 
-def test_plain_start_offers_webapp():
-    rec = Recorder()
-    original, bot.api = bot.api, rec
-    try:
-        bot.handle_update({"message": {"chat": {"id": 1}, "text": "/start"}})
-    finally:
-        bot.api = original
-    button = rec.payload("sendMessage")["reply_markup"]["inline_keyboard"][0][0]
-    assert "web_app" in button
+class FakeIssue:
+    """Подменяет urlopen: отдаёт ответ /auth/telegram/issue и пишет, что спросили."""
 
+    def __init__(self, has_data=False, fail=False):
+        self.has_data = has_data
+        self.fail = fail
+        self.requests = []
 
-def test_start_with_nonce_asks_confirmation():
-    rec = Recorder()
-    original, bot.api = bot.api, rec
-    try:
-        bot.handle_update({"message": {"chat": {"id": 1}, "text": "/start abc123"}})
-    finally:
-        bot.api = original
-    msg = rec.payload("sendMessage")
-    button = msg["reply_markup"]["inline_keyboard"][0][0]
-    assert button["callback_data"] == "login:abc123"
-    # код для сверки считается так же, как на сервере
-    from app.main import login_code
-    assert login_code("abc123") in msg["text"]
-
-
-def test_callback_approves_login():
-    rec = Recorder()
-    sent = {}
-
-    class FakeResponse:
-        def read(self):
-            return json.dumps({"status": "ok"}).encode()
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-    def fake_urlopen(req, timeout=15):
-        sent["url"] = req.full_url
-        sent["body"] = json.loads(req.data.decode())
-        sent["auth"] = req.get_header("Authorization")
-        return FakeResponse()
-
-    original_api, bot.api = bot.api, rec
-    original_open, bot.urllib.request.urlopen = bot.urllib.request.urlopen, fake_urlopen
-    try:
-        bot.handle_update({
-            "callback_query": {
-                "id": "cb1",
-                "data": "login:abc123",
-                "from": {"id": 8, "first_name": "Вика", "username": "vika"},
-                "message": {"chat": {"id": 1}, "message_id": 5},
-            }
+    def __call__(self, req, timeout=15):
+        self.requests.append({
+            "url": req.full_url,
+            "body": json.loads(req.data.decode()),
+            "auth": req.get_header("Authorization"),
         })
+        if self.fail:
+            raise OSError("503")
+        token = f"tok{len(self.requests)}"
+        return _Response({
+            "token": token,
+            "consumeUrl": f"https://finlo.test/api/auth/telegram/consume?token={token}",
+            "expiresIn": 300,
+            "hasData": self.has_data,
+        })
+
+
+class _Response:
+    def __init__(self, body):
+        self._body = json.dumps(body).encode()
+
+    def read(self):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def run_start(text, issue, rec):
+    """Прогоняет /start через бота с подменёнными сетевыми вызовами."""
+    original_api, bot.api = bot.api, rec
+    original_open, bot.urllib.request.urlopen = bot.urllib.request.urlopen, issue
+    try:
+        bot.handle_update({"message": {"chat": {"id": 1}, "text": text, "from": USER}})
     finally:
         bot.api = original_api
         bot.urllib.request.urlopen = original_open
 
-    assert sent["url"] == "http://app:8000/dashboards/api/auth/tg-link/approve"
-    assert sent["body"] == {"nonce": "abc123", "user": {"id": 8, "first_name": "Вика", "username": "vika"}}
-    # запрос подписан токеном бота, а не пользовательским
+
+def test_start_register_sends_login_link():
+    rec, issue = Recorder(), FakeIssue()
+    run_start("/start register", issue, rec)
+
+    # запрос ушёл на issue, подписан токеном бота, с профилем пользователя
+    assert len(issue.requests) == 1
+    sent = issue.requests[0]
+    assert sent["url"] == "http://app:8000/api/auth/telegram/issue"
+    assert sent["body"]["telegram_id"] == "8"
+    assert sent["body"]["first_name"] == "Вика"
     assert jwt_decode(sent["auth"].removeprefix("Bearer "), "test-secret")["bot"] is True
-    # пользователю ответили и заменили сообщение
-    assert "answerCallbackQuery" in rec.methods()
-    assert "вернитесь" in rec.payload("editMessageText")["text"].lower()
+
+    # пользователю пришла кнопка-ссылка (URL, а не callback) и кнопка Web App
+    keyboard = rec.payload("sendMessage")["reply_markup"]["inline_keyboard"]
+    assert keyboard[0][0]["url"].endswith("consume?token=tok1")
+    assert keyboard[0][0]["text"] == "✅ Начать бесплатно"  # данных ещё нет
+    assert "web_app" in keyboard[1][0]
 
 
-def test_callback_reports_expired_link():
-    rec = Recorder()
+def test_plain_start_also_issues_link():
+    rec, issue = Recorder(), FakeIssue(has_data=True)
+    run_start("/start", issue, rec)
+    keyboard = rec.payload("sendMessage")["reply_markup"]["inline_keyboard"]
+    assert keyboard[0][0]["text"] == "🚀 Открыть finlo"  # пользователь уже заведён
 
-    def failing_urlopen(req, timeout=15):
-        raise OSError("404")
 
-    original_api, bot.api = bot.api, rec
-    original_open, bot.urllib.request.urlopen = bot.urllib.request.urlopen, failing_urlopen
-    try:
-        bot.handle_update({
-            "callback_query": {
-                "id": "cb2", "data": "login:stale", "from": {"id": 8},
-                "message": {"chat": {"id": 1}, "message_id": 5},
-            }
-        })
-    finally:
-        bot.api = original_api
-        bot.urllib.request.urlopen = original_open
+def test_each_start_issues_fresh_link():
+    """Ссылка одноразовая, поэтому на каждый /start выпускается новая."""
+    rec, issue = Recorder(), FakeIssue()
+    run_start("/start register", issue, rec)
+    run_start("/start register", issue, rec)
 
-    assert "устарела" in rec.payload("editMessageText")["text"].lower()
+    assert len(issue.requests) == 2
+    urls = [p["reply_markup"]["inline_keyboard"][0][0]["url"]
+            for m, p in rec.calls if m == "sendMessage"]
+    assert urls[0] != urls[1]
+
+
+def test_issue_failure_tells_user():
+    rec, issue = Recorder(), FakeIssue(fail=True)
+    run_start("/start", issue, rec)
+    msg = rec.payload("sendMessage")
+    assert "не удалось" in msg["text"].lower()
+    assert "reply_markup" not in msg  # кнопки нет — нажимать нечего
 
 
 if __name__ == "__main__":

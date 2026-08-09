@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getUsername, setUsername as persistUsername, clearUsername } from './features/session/session'
-import { connectBackend, connectTelegram, disconnectBackend, type TelegramSession } from './data/backend'
+import {
+  connectBackend, connectTelegram, connectWithToken, disconnectBackend, restoreSession,
+  type TelegramSession,
+} from './data/backend'
 import { isTelegram, initTelegramUI, telegramInitData } from './features/session/telegram'
 import LoginScreen from './features/session/LoginScreen'
 import ModuleChooser, { type ModuleId } from './features/session/ModuleChooser'
 import AdminUsers from './features/admin/AdminUsers'
 import Landing from './features/landing/Landing'
 import LegalPage from './features/landing/LegalPage'
-import { navigate, useRoute } from './routes'
+import { navigate, takeTokenFromUrl, useRoute } from './routes'
 import App from './App'
 import PlApp from './features/pnl/PlApp'
 import BsApp from './features/bs/BsApp'
@@ -27,8 +30,8 @@ export default function Shell() {
   const [module, setModule] = useState<ModuleId | null>(null)
   const [admin, setAdmin] = useState(false)
 
-  // Старт: внутри Telegram — авто-вход (initData → JWT), иначе подключаем
-  // запомненного пользователя (серверный режим). Локальный режим — no-op.
+  // Старт: внутри Telegram — авто-вход по initData. В браузере — либо токен,
+  // который принесла ссылка из бота, либо сохранённая сессия. Локальный режим — no-op.
   useEffect(() => {
     let cancelled = false
     async function boot() {
@@ -39,6 +42,23 @@ export default function Shell() {
           applySession(session) // авто-вход: экран входа пропускаем
           return
         }
+      }
+
+      const token = takeTokenFromUrl()
+      if (token) {
+        const session = await connectWithToken(token)
+        if (session && !cancelled) {
+          applySession(session)
+          navigate('/app')
+          return
+        }
+        if (!cancelled) navigate('/login?error=auth_expired')
+      }
+
+      const restored = await restoreSession()
+      if (restored && !cancelled) {
+        applySession(restored)
+        return
       }
       if (username && !cancelled) void connectBackend(username)
     }

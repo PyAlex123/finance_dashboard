@@ -31,6 +31,10 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Публичный адрес сайта: из него собирается абсолютная ссылка входа,
+      # которую бот отправляет пользователю (PUBLIC_URL переопределяет origin).
+      WEBAPP_URL: ${WEBAPP_URL:-https://finlo.uz/}
+      PUBLIC_URL: ${PUBLIC_URL:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     volumes:
       - app_data:/data

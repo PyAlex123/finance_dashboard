@@ -40,6 +40,21 @@ export function navigate(path: string): void {
   window.scrollTo(0, 0)
 }
 
+/**
+ * Токен из фрагмента после возврата с `…/auth/telegram/consume` и очистка адреса.
+ * Фрагмент выбран вместо query намеренно: он не попадает ни в логи сервера, ни в
+ * Referer. Читаем один раз и сразу стираем, чтобы не остался в истории вкладки.
+ */
+export function takeTokenFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const hash = window.location.hash.replace(/^#/, '')
+  if (!hash) return null
+  const token = new URLSearchParams(hash).get('token')
+  if (!token) return null
+  window.history.replaceState({}, '', window.location.pathname + window.location.search)
+  return token
+}
+
 /** Текущий роут; следит за «назад/вперёд» и за navigate(). */
 export function useRoute(): Route {
   const [route, setRoute] = useState<Route>(() => routeOf(pathname()))

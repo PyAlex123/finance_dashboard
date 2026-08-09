@@ -8,6 +8,7 @@
 // (его зовёт переключатель отчётов ReportSwitcher).
 
 import { store } from '../store'
+import { clearSession, loadSession, saveSession } from '../features/session/authSession'
 import { connectWorkspace, disconnectWorkspace, flushPendingSave } from './persistence'
 import { createApiRepo } from './apiRepo'
 import { createIdbRepo } from './idbRepo'
@@ -55,15 +56,71 @@ interface SessionResponse {
   isAdmin?: boolean
 }
 
-/** Запомнить выданную сервером сессию и вернуть профиль для UI. */
+/**
+ * Запомнить выданную сервером сессию и вернуть профиль для UI. Кладём её и в
+ * localStorage — иначе перезагрузка страницы выкидывала бы на экран входа.
+ */
 function rememberSession(body: SessionResponse): TelegramSession {
   session = { owner: body.workspace, token: body.token }
-  return {
+  const profile: TelegramSession = {
     name: body.name,
     workspace: body.workspace,
     isAdmin: !!body.isAdmin,
     photoUrl: body.photoUrl ?? undefined,
     username: body.username ?? undefined,
+  }
+  saveSession({ token: body.token, ...profile })
+  return profile
+}
+
+/** Профиль по Bearer. null — токен не принят сервером. */
+async function fetchMe(token: string): Promise<TelegramSession | null> {
+  const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) return null
+  const body = (await res.json()) as Omit<SessionResponse, 'token'>
+  return rememberSession({ ...body, token })
+}
+
+/**
+ * Вход по токену, приехавшему из бота (ссылка consume вернула его во фрагменте).
+ * Профиль спрашиваем у сервера — заодно это проверка, что токен настоящий.
+ */
+export async function connectWithToken(token: string): Promise<TelegramSession | null> {
+  if (!REMOTE || !token) return null
+  try {
+    return await fetchMe(token)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Поднять сохранённую сессию при загрузке страницы. Токен заодно проверяется на
+ * сервере (/auth/me): протух или сменился секрет — чистим хранилище и просим войти.
+ */
+export async function restoreSession(): Promise<TelegramSession | null> {
+  const stored = loadSession()
+  if (!REMOTE || !stored) return null
+  session = { owner: stored.workspace, token: stored.token }
+  try {
+    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${stored.token}` },
+    })
+    if (res.status === 401 || res.status === 403) {
+      disconnectBackend()
+      return null
+    }
+    if (!res.ok) {
+      // Сервер недоступен — доверяем сохранённому профилю, данные всё равно
+      // подхватятся из локального зеркала (resilientRepo).
+      return { ...stored, isAdmin: !!stored.isAdmin }
+    }
+    const body = (await res.json()) as Omit<SessionResponse, 'token'>
+    return rememberSession({ ...body, token: stored.token })
+  } catch {
+    return { ...stored, isAdmin: !!stored.isAdmin }
   }
 }
 
@@ -84,48 +141,6 @@ export async function connectTelegram(initData: string): Promise<TelegramSession
     return rememberSession((await res.json()) as SessionResponse)
   } catch {
     return null
-  }
-}
-
-/** Заявка на вход через бота: ссылку открываем, по nonce опрашиваем сервер. */
-export interface TelegramLink {
-  nonce: string
-  url: string
-  code: string
-  expiresIn: number
-}
-
-/** Создать заявку на вход с компьютера (сервер вернёт ссылку t.me/<bot>?start=…). */
-export async function startTelegramLink(): Promise<TelegramLink | null> {
-  if (!REMOTE) return null
-  try {
-    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/tg-link/start`, {
-      method: 'POST',
-    })
-    if (!res.ok) return null
-    return (await res.json()) as TelegramLink
-  } catch {
-    return null
-  }
-}
-
-/**
- * Опрос заявки. `pending` — пользователь ещё не подтвердил, `expired` — заявка
- * протухла (или уже использована), сессия — вход состоялся.
- */
-export async function pollTelegramLink(
-  nonce: string,
-): Promise<TelegramSession | 'pending' | 'expired'> {
-  if (!REMOTE) return 'expired'
-  try {
-    const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/auth/tg-link/${nonce}`)
-    if (res.status === 404) return 'expired'
-    if (!res.ok) return 'pending' // временная ошибка сервера — просто ждём дальше
-    const body = (await res.json()) as { status?: string } & Record<string, unknown>
-    if (body.status !== 'ok') return 'pending'
-    return rememberSession(body as unknown as SessionResponse)
-  } catch {
-    return 'pending' // сеть моргнула — продолжаем опрашивать
   }
 }
 
@@ -179,6 +194,7 @@ export async function connectReport(reportId: string): Promise<void> {
 /** Выход: в серверном режиме прекратить сохранять и забыть сессию. */
 export function disconnectBackend(): void {
   session = null
+  clearSession()
   if (!REMOTE) return
   disconnectWorkspace()
 }

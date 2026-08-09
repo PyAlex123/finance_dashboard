@@ -6,6 +6,7 @@ import { hydrate } from './store/dataSlice'
 import { buildEmptySnapshot } from './data/fixtures'
 import Shell from './Shell'
 import { clearUsername } from './features/session/session'
+import { loadSession, saveSession } from './features/session/authSession'
 
 afterEach(cleanup)
 beforeEach(() => {
@@ -92,6 +93,14 @@ describe('Shell — поток экранов', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Отчёт ДДС' }))
     // отчёт формируется автоматически: даже без операций есть остатки по счетам
     expect(screen.getByText('Остатки по счетам')).toBeInTheDocument()
+  })
+
+  it('«Выйти» стирает сохранённую сессию', () => {
+    saveSession({ token: 't', workspace: 'tg:8', name: 'Вика' })
+    renderShell()
+    loginAs('Ю')
+    fireEvent.click(screen.getByRole('button', { name: 'Выйти' }))
+    expect(loadSession()).toBeNull()
   })
 
   it('прямой путь /privacy открывает политику конфиденциальности', () => {

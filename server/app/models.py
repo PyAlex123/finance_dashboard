@@ -55,24 +55,24 @@ class User(Base):
     )
 
 
-class LoginRequest(Base):
-    """Одноразовая заявка на вход через бота (браузер вне Telegram).
+class BotAuthToken(Base):
+    """Одноразовый токен входа с компьютера, выпущенный ботом.
 
-    Сайт создаёт запись и открывает `t.me/<bot>?start=<nonce>`; бот после нажатия
-    кнопки подтверждения проставляет профиль пользователя; вкладка сайта опрашивает
-    сервер и получает JWT. Запись удаляется сразу после выдачи токена (одноразовая)
-    и протухает через несколько минут."""
+    Пользователь пришёл в бота (`/start register`), бот попросил у API токен и дал
+    ссылку `…/api/auth/telegram/consume?token=…`. Открытие ссылки в браузере — это и
+    есть вход: запись помечается `used_at` и больше не работает. Живёт минуты
+    (LOGIN_REQUEST_TTL), профиль записан сразу — токен именной."""
 
-    __tablename__ = "login_requests"
+    __tablename__ = "bot_auth_tokens"
 
-    # Секрет, известный только открывшей вход вкладке и переданный боту в ссылке.
-    nonce: Mapped[str] = mapped_column(String(64), primary_key=True)
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
-    # Пусто — ждём подтверждения; заполнено — можно выдавать сессию.
-    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    tg_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    # Заполнено — ссылка уже использована, повторный переход отправляет на вход заново.
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    tg_id: Mapped[str] = mapped_column(String(64), nullable=False)
     username: Mapped[str | None] = mapped_column(String(190), nullable=True)
     first_name: Mapped[str | None] = mapped_column(String(190), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(190), nullable=True)

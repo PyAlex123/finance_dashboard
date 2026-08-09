@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import secrets
@@ -14,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel
@@ -27,7 +27,7 @@ from .auth import (
 )
 from .config import (
     ADMIN_TG_IDS, BASE_PATH, CORS_ORIGINS, GOOGLE_CLIENT_ID, JWT_SECRET, JWT_TTL_SECONDS,
-    LOGIN_REQUEST_TTL, STATIC_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE,
+    LOGIN_REQUEST_TTL, PUBLIC_URL, STATIC_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_INITDATA_MAX_AGE,
 )
 from .db import Base, engine, get_session
 from .providers import bot_username, verify_google_id_token
@@ -108,34 +108,27 @@ def auth_telegram(body: TelegramAuthIn, db: Session = Depends(get_session)) -> d
     return _issue_session(db, user)
 
 
-# ---------- Вход через бота: t.me/<bot>?start=<nonce> ----------
+# ---------- Вход с компьютера: бот выдаёт одноразовую ссылку ----------
 #
-# Браузер вне Telegram: сайт создаёт одноразовую заявку и открывает ссылку в бота,
-# пользователь подтверждает вход кнопкой в чате, вкладка сайта опрашивает сервер и
-# получает тот же JWT. Ни домена у @BotFather, ни виджета не нужно.
+# Браузер вне Telegram: кнопка на сайте ведёт в бота (`/start register`), бот просит у
+# нас одноразовый токен и присылает пользователю ссылку `…/auth/telegram/consume?token=`.
+# Открытие ссылки и есть вход — редирект возвращает в приложение уже с сессией.
+# Ни домена у @BotFather, ни виджета не нужно.
 
 
-def login_code(nonce: str) -> str:
-    """Короткий код для сверки глазами: одинаково считается на сайте и в боте.
-    Производный от nonce, самого секрета не раскрывает."""
-    return hashlib.sha256(nonce.encode()).hexdigest()[:4].upper()
-
-
-def _expired(row: models.LoginRequest) -> bool:
-    return (datetime.now(timezone.utc) - row.created_at.replace(tzinfo=timezone.utc)) > timedelta(
-        seconds=LOGIN_REQUEST_TTL
-    )
+def _now() -> datetime:
+    """Naive-UTC: в БД даты без таймзоны (SQLite/MySQL), сравниваем в одном формате."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _purge_expired(db: Session) -> None:
-    """Чистим протухшие заявки, чтобы таблица не росла (заявок мало, делаем на входе)."""
-    deadline = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=LOGIN_REQUEST_TTL)
-    db.query(models.LoginRequest).filter(models.LoginRequest.created_at < deadline).delete()
+    """Чистим протухшие токены, чтобы таблица не росла (их мало, делаем при выпуске)."""
+    db.query(models.BotAuthToken).filter(models.BotAuthToken.expires_at < _now()).delete()
     db.commit()
 
 
 def require_bot(authorization: str | None = Header(default=None)) -> None:
-    """Подтверждать вход имеет право только наш бот: он подписывает короткий JWT
+    """Выпускать токены входа имеет право только наш бот: он подписывает короткий JWT
     общим JWT_SECRET (эндпоинт публичен через nginx, поэтому проверка обязательна)."""
     token = (authorization or "").removeprefix("Bearer ").strip()
     try:
@@ -146,78 +139,106 @@ def require_bot(authorization: str | None = Header(default=None)) -> None:
         raise HTTPException(status_code=401, detail="Токен не принадлежит боту")
 
 
-@api.post("/auth/tg-link/start")
-def tg_link_start(db: Session = Depends(get_session)) -> dict:
-    """Создать заявку на вход и вернуть ссылку в бота."""
+@api.get("/auth/telegram")
+def auth_telegram_redirect() -> RedirectResponse:
+    """Кнопка «Войти через Telegram» на сайте — редирект в бота.
+
+    Имя бота держим на сервере (и узнаём через getMe), чтобы фронт про него не знал.
+    """
     if not TELEGRAM_BOT_TOKEN:
         raise HTTPException(status_code=503, detail="Telegram-логин не настроен на сервере")
     bot = bot_username()
     if not bot:
         raise HTTPException(status_code=503, detail="Не удалось определить имя бота")
+    return RedirectResponse(f"https://t.me/{bot}?start=register", status_code=303)
+
+
+class TelegramIssueIn(BaseModel):
+    telegram_id: str
+    first_name: str | None = None
+    last_name: str | None = None
+    username: str | None = None
+    photo_url: str | None = None
+
+
+@api.post("/auth/telegram/issue")
+def auth_telegram_issue(
+    body: TelegramIssueIn,
+    db: Session = Depends(get_session),
+    _: None = Depends(require_bot),
+) -> dict:
+    """Бот просит одноразовую ссылку для пользователя, нажавшего /start."""
     _purge_expired(db)
-    nonce = secrets.token_urlsafe(24)
-    db.add(models.LoginRequest(nonce=nonce))
+    token = secrets.token_urlsafe(24)
+    db.add(models.BotAuthToken(
+        token=token,
+        expires_at=_now() + timedelta(seconds=LOGIN_REQUEST_TTL),
+        tg_id=str(body.telegram_id),
+        username=body.username,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        photo_url=body.photo_url,
+    ))
     db.commit()
+
+    workspace = f"tg:{body.telegram_id}"
+    has_data = db.get(models.User, workspace) is not None
     return {
-        "nonce": nonce,
-        "url": f"https://t.me/{bot}?start={nonce}",
-        "code": login_code(nonce),
+        "token": token,
+        "consumeUrl": f"{PUBLIC_URL}{BASE_PATH}/api/auth/telegram/consume?token={token}",
         "expiresIn": LOGIN_REQUEST_TTL,
+        "hasData": has_data,
     }
 
 
-@api.get("/auth/tg-link/{nonce}")
-def tg_link_poll(nonce: str, db: Session = Depends(get_session)) -> dict:
-    """Опрос заявки: ждём подтверждения, затем один раз отдаём сессию."""
-    row = db.get(models.LoginRequest, nonce)
-    if row is None:
-        raise HTTPException(status_code=404, detail="Заявка не найдена")
-    if _expired(row):
-        db.delete(row)
-        db.commit()
-        raise HTTPException(status_code=404, detail="Заявка истекла")
-    if row.approved_at is None:
-        return {"status": "pending"}
+@api.get("/auth/telegram/consume")
+def auth_telegram_consume(token: str, db: Session = Depends(get_session)) -> RedirectResponse:
+    """Переход по ссылке из бота = вход. Ссылка строго одноразовая.
 
-    user = {
+    Токен отдаём во фрагменте (#token=…): в отличие от query он не попадает ни в
+    access-логи nginx, ни в заголовок Referer. Фронт читает его и сразу чистит адрес.
+    """
+    login = f"{BASE_PATH}/login"
+    row = db.get(models.BotAuthToken, token)
+    if row is None or row.used_at is not None or row.expires_at < _now():
+        return RedirectResponse(f"{login}?error=auth_expired", status_code=303)
+
+    row.used_at = _now()
+    db.commit()
+
+    session = _issue_session(db, {
         "id": row.tg_id,
         "first_name": row.first_name,
         "last_name": row.last_name,
         "username": row.username,
         "photo_url": row.photo_url,
-    }
-    db.delete(row)  # одноразовая: повторный опрос уже ничего не даст
-    db.commit()
-    return {"status": "ok", **_issue_session(db, user)}
+    })
+    return RedirectResponse(f"{login}#token={session['token']}&oauth=1", status_code=303)
 
 
-@api.post("/auth/tg-link/approve")
-async def tg_link_approve(
-    request: Request,
+@api.get("/auth/me")
+def auth_me(
+    authorization: str | None = Header(default=None),
     db: Session = Depends(get_session),
-    _: None = Depends(require_bot),
 ) -> dict:
-    """Вызывает бот после нажатия кнопки подтверждения в чате."""
-    body = await request.json()
-    if not isinstance(body, dict):
-        raise HTTPException(status_code=400, detail="Ожидался объект")
-    row = db.get(models.LoginRequest, str(body.get("nonce") or ""))
-    if row is None or _expired(row):
-        raise HTTPException(status_code=404, detail="Заявка не найдена или истекла")
-    if row.approved_at is not None:
-        return {"status": "already"}  # повтор нажатия — не ошибка
-
-    user = body.get("user") or {}
-    if not user.get("id"):
-        raise HTTPException(status_code=400, detail="Нет пользователя")
-    row.tg_id = str(user["id"])
-    row.first_name = user.get("first_name")
-    row.last_name = user.get("last_name")
-    row.username = user.get("username")
-    row.photo_url = user.get("photo_url")
-    row.approved_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    db.commit()
-    return {"status": "ok"}
+    """Профиль по Bearer — фронт восстанавливает им сессию после перезагрузки
+    и заодно проверяет, что токен ещё жив."""
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    try:
+        payload = jwt_decode(token, JWT_SECRET)
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    workspace = str(payload.get("sub") or "")
+    if not workspace:
+        raise HTTPException(status_code=401, detail="В токене нет пользователя")
+    row = db.get(models.User, workspace)
+    return {
+        "workspace": workspace,
+        "name": payload.get("name") or workspace,
+        "photoUrl": row.photo_url if row else None,
+        "username": row.username if row else None,
+        "isAdmin": is_admin(workspace),
+    }
 
 
 # ---------- Google: вход по ID-токену ----------

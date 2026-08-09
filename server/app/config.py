@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 # Необязательная загрузка .env (python-dotenv). Без него берём системное окружение.
 try:
@@ -64,6 +65,18 @@ TELEGRAM_INITDATA_MAX_AGE: int = int(os.getenv("TELEGRAM_INITDATA_MAX_AGE", str(
 # Публичный URL Web App (для кнопок бота: /start и меню «Кабинет»). Напр.
 # https://grammerce.io/dashboards/. Пусто — бот не сможет собрать кнопки.
 WEBAPP_URL: str = os.getenv("WEBAPP_URL", "").strip()
+
+
+def _origin(url: str) -> str:
+    """scheme://host из полного адреса (без пути) — основа для абсолютных ссылок."""
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else ""
+
+
+# Публичный адрес сайта (origin) — нужен боту в ссылке входа: она открывается в
+# браузере, поэтому должна быть абсолютной. По умолчанию берём из WEBAPP_URL,
+# отбрасывая путь (BASE_PATH добавляется отдельно).
+PUBLIC_URL: str = os.getenv("PUBLIC_URL", "").strip().rstrip("/") or _origin(WEBAPP_URL)
 
 # Админы — по Telegram id (через запятую), напр. ADMIN_TG_IDS=12345,67890.
 # Нормализуем в пространства tg:<id>. Пусто — админов нет.

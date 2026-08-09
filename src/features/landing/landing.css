@@ -305,20 +305,6 @@ html { scroll-behavior: smooth; scroll-padding-top: 92px; }
   display: grid; place-items: center; opacity: 0; }
 .lp-login__gis > * { transform: scale(1.4); }
 
-/* Ожидание подтверждения входа в боте */
-.lp-login__waiting { background: #FFFFFF; border: 1px solid #DCE6E1; border-radius: 14px;
-  padding: 22px 20px; text-align: center; }
-.lp-login__waiting-title { font-family: Manrope, sans-serif; font-weight: 700; font-size: 16px;
-  color: #0B3B32; margin: 0 0 8px; }
-.lp-login__waiting-text { font-size: 14px; line-height: 1.6; color: #68807A; margin: 0; }
-.lp-login__code { font-family: Manrope, sans-serif; font-weight: 800; font-size: 30px;
-  letter-spacing: .22em; color: #0B3B32; margin: 16px 0 4px; font-variant-numeric: tabular-nums; }
-.lp-login__waiting-actions { display: flex; justify-content: center; gap: 18px; margin-top: 14px;
-  font-size: 13.5px; }
-.lp-login__waiting-actions button { font: inherit; color: #68807A; background: none; border: none;
-  padding: 0; cursor: pointer; }
-.lp-login__waiting-actions button:hover { color: #14584A; }
-
 .lp-login__fallback { margin: 20px 0 0; font-size: 13.5px; color: #68807A; }
 .lp-login__fallback button { font: inherit; color: #14584A; background: none; border: none;
   padding: 0; cursor: pointer; text-decoration: underline; }

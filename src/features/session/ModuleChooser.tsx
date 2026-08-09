@@ -5,6 +5,7 @@ import { formatMoney } from '../../domain/money'
 import { REMOTE } from '../../data/backend'
 import { listReports } from '../../data/reports'
 import ProfileBadge from './ProfileBadge'
+import { FinloMark } from '../landing/Logo'
 import type { ReportForm } from '../../domain/types'
 
 export type ModuleId = 'dds' | 'pl' | 'bs'
@@ -72,9 +73,12 @@ export default function ModuleChooser({
   return (
     <div className="chooser">
       <header className="chooser__top">
-        <div>
-          <div className="chooser__hello">Здравствуйте, {username}</div>
-          <h1 className="chooser__title">Выберите модуль</h1>
+        <div className="chooser__brand">
+          <FinloMark className="chooser__logo" />
+          <div>
+            <div className="chooser__hello">Здравствуйте, {username}</div>
+            <h1 className="chooser__title">Выберите модуль</h1>
+          </div>
         </div>
         <div className="chooser__who">
           <ProfileBadge name={username} photoUrl={photoUrl} />

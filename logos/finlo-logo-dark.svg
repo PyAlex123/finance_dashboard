@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122 62" width="122" height="62" role="img" aria-label="Finlo">
+<title>Finlo</title>
+<text x="0" y="48" font-family="Manrope, system-ui, sans-serif" font-size="46" font-weight="500" letter-spacing="-1.5" fill="#F4F7F5">Finl</text>
+<circle cx="99" cy="31" r="17" fill="none" stroke="#14584A" stroke-width="9"/>
+<circle cx="99" cy="31" r="17" fill="none" stroke="#F4F7F5" stroke-width="9" stroke-dasharray="42.72 64.09" transform="rotate(-90 99 31)"/>
+<circle cx="99" cy="31" r="17" fill="none" stroke="#1FA37F" stroke-width="9" stroke-dasharray="32.04 74.77" stroke-dashoffset="-42.72" transform="rotate(-90 99 31)"/>
+</svg>

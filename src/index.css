@@ -497,6 +497,9 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   color: var(--accent); margin-bottom: 12px; }
 .chooser__title { margin: 0; font: 800 34px/1.05 'Manrope', sans-serif; letter-spacing: -.035em; color: var(--forest); }
 .chooser__who { display: flex; align-items: center; gap: 10px; }
+/* Знак finlo рядом с приветствием (features/landing/Logo.tsx). */
+.chooser__brand { display: flex; align-items: center; gap: 14px; }
+.chooser__logo { display: block; width: 38px; height: 38px; flex: 0 0 auto; }
 .chooser__idhint { margin: -20px 0 28px; font: 500 12.5px/1.4 'Manrope', sans-serif; color: var(--ink-soft, #6b7770); }
 .chooser__idhint b { color: var(--forest); }
 .chooser__avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--mint); display: flex;

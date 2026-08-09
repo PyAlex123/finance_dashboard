@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BRAND, BRAND_TAGLINE } from '../../brand'
+import { BRAND_TAGLINE } from '../../brand'
 import { href, linkHandler } from '../../routes'
+import { FinloLockup } from '../landing/Logo'
 import {
   REMOTE, connectGoogle, fetchPublicConfig, pollTelegramLink, startTelegramLink,
   type PublicConfig, type TelegramLink, type TelegramSession,
@@ -153,10 +154,7 @@ export default function LoginScreen({ onLogin, onSession }: LoginScreenProps) {
 
       <main className="lp-login__main">
         <a className="lp-login__logo" href={href('/')} onClick={linkHandler('/')}>
-          <span className="lp-login__mark" aria-hidden="true">
-            <span className="lp-login__tick" />
-          </span>
-          <span className="lp-login__brand">{BRAND}</span>
+          <FinloLockup className="lp-login__svg" />
         </a>
         <h1 className="lp-login__title">Войдите, чтобы продолжить</h1>
         <p className="lp-login__sub">{BRAND_TAGLINE}</p>

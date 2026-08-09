@@ -1,5 +1,6 @@
 import { BRAND, BRAND_TAGLINE } from '../../brand'
 import { href, linkHandler } from '../../routes'
+import { FinloLockup } from './Logo'
 
 export default function LandingFooter({ loggedIn }: { loggedIn?: boolean }) {
   const enter = loggedIn ? { path: '/app', label: 'Открыть кабинет' } : { path: '/login', label: 'Войти' }
@@ -9,10 +10,7 @@ export default function LandingFooter({ loggedIn }: { loggedIn?: boolean }) {
       <div className="lp-footer__inner">
         <div className="lp-footer__brand">
           <div className="lp-footer__logo">
-            <span className="lp-footer__mark" aria-hidden="true">
-              <span className="lp-footer__tick" />
-            </span>
-            <span className="lp-footer__name">{BRAND}</span>
+            <FinloLockup tone="paper" className="lp-footer__svg" />
           </div>
           <p className="lp-footer__desc">{BRAND_TAGLINE}</p>
         </div>

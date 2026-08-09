@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { RefObject } from 'react'
-import { BRAND } from '../../brand'
 import { href, linkHandler } from '../../routes'
+import { FinloLockup } from './Logo'
 
 const LINKS = [
   { hash: '#features', label: 'Возможности' },
@@ -26,10 +26,7 @@ export default function LandingHeader({ barRef, loggedIn }: LandingHeaderProps) 
     <header className="lp-bar" ref={barRef as RefObject<HTMLElement>}>
       <div className="lp-bar__inner">
         <a className="lp-logo" href="#top">
-          <span className="lp-logo__mark" aria-hidden="true">
-            <span className="lp-logo__tick" />
-          </span>
-          <span className="lp-logo__name">{BRAND}</span>
+          <FinloLockup className="lp-logo__svg" />
         </a>
 
         <nav className="lp-nav">

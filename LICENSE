@@ -1,0 +1,76 @@
+ЛИЦЕНЗИЯ НА ОЗНАКОМЛЕНИЕ С ИСХОДНЫМ КОДОМ FINLO
+SOURCE-AVAILABLE (EVALUATION ONLY) LICENSE
+
+Copyright (c) 2026 Ибрагимов Александр. Все права защищены. / All rights reserved.
+
+--------------------------------------------------------------------------------
+РУССКАЯ ВЕРСИЯ (имеет преимущественную силу)
+--------------------------------------------------------------------------------
+
+Этот репозиторий открыт для ЧТЕНИЯ. Он опубликован, чтобы код можно было изучить
+и оценить — например, при рассмотрении заявки, проведении технического аудита или
+собеседования. Открытая публикация не делает его свободным программным обеспечением.
+
+1. РАЗРЕШАЕТСЯ
+   а) просматривать и читать исходный код;
+   б) изучать его и цитировать фрагменты при обсуждении, обзоре или оценке проекта
+      с обязательным указанием источника;
+   в) собирать и запускать проект локально — исключительно для того, чтобы
+      ознакомиться с его работой.
+
+2. ЗАПРЕЩАЕТСЯ без предварительного письменного разрешения правообладателя
+   а) использовать код или его части в собственных продуктах, проектах и услугах,
+      как коммерческих, так и некоммерческих;
+   б) копировать, изменять, дорабатывать код и создавать производные произведения;
+   в) распространять, публиковать, передавать третьим лицам код или производные
+      от него работы;
+   г) размещать сервис на основе этого кода в публичном доступе;
+   д) использовать код для обучения моделей машинного обучения.
+
+3. ТОВАРНЫЕ ЗНАКИ
+   Название «finlo», логотип и фирменное оформление не покрываются настоящей
+   лицензией и остаются собственностью правообладателя.
+
+4. ОТСУТСТВИЕ ГАРАНТИЙ
+   ПРОГРАММА ПРЕДОСТАВЛЯЕТСЯ «КАК ЕСТЬ», БЕЗ КАКИХ-ЛИБО ГАРАНТИЙ, ЯВНЫХ ИЛИ
+   ПОДРАЗУМЕВАЕМЫХ, ВКЛЮЧАЯ ГАРАНТИИ ПРИГОДНОСТИ ДЛЯ ОПРЕДЕЛЁННОЙ ЦЕЛИ.
+   ПРАВООБЛАДАТЕЛЬ НЕ НЕСЁТ ОТВЕТСТВЕННОСТИ ЗА КАКОЙ-ЛИБО УЩЕРБ, СВЯЗАННЫЙ С
+   ИСПОЛЬЗОВАНИЕМ ИЛИ НЕВОЗМОЖНОСТЬЮ ИСПОЛЬЗОВАНИЯ ПРОГРАММЫ.
+
+Это НЕ лицензия с открытым исходным кодом в понимании OSI (не MIT, не Apache 2.0).
+За разрешением на любое использование, выходящее за рамки п. 1, обращайтесь к
+правообладателю.
+
+--------------------------------------------------------------------------------
+ENGLISH VERSION (for reference; the Russian text prevails)
+--------------------------------------------------------------------------------
+
+This repository is source-available for READING only. It is published so that the
+code can be studied and evaluated — for example, during an application review, a
+technical audit or an interview. Public availability does not make it open source.
+
+1. YOU MAY
+   a) view and read the source code;
+   b) study it and quote fragments when discussing, reviewing or evaluating the
+      project, with attribution;
+   c) build and run the project locally, solely to see how it works.
+
+2. YOU MAY NOT, without prior written permission of the copyright holder
+   a) use the code or any part of it in your own products, projects or services,
+      whether commercial or not;
+   b) copy, modify or create derivative works;
+   c) distribute, publish or transfer the code or derivative works to third parties;
+   d) host a service based on this code publicly;
+   e) use the code to train machine learning models.
+
+3. TRADEMARKS
+   The "finlo" name, logo and visual identity are not covered by this license and
+   remain the property of the copyright holder.
+
+4. NO WARRANTY
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED. THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM
+   THE USE OF OR INABILITY TO USE THE SOFTWARE.
+
+This is NOT an OSI-approved open-source license. For any use beyond clause 1,
+please contact the copyright holder.

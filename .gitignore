@@ -1,12 +1,40 @@
-node_modules/
+# --- секреты ---
 .env
-.env.local
-.env.docker
+.env.*
+!.env.example
+!.env.docker.example
+*.pem
+*.key
+credentials.json
+
+# --- зависимости и сборка ---
+node_modules/
 dist/
 dist-ssr/
+build/
 coverage/
-*.local
-.DS_Store
 .vite/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- локальные данные ---
+*.db
+*.sqlite
+uploads/
+*.local
 *.log
 npm-debug.log*
+
+# --- рабочие материалы, не относящиеся к продукту ---
+# выгрузки макетов Claude Design и внутренние заметки
+land/
+uxui/
+Finlo_github_setup.md
+
+# --- IDE и ОС ---
+.idea/
+.vscode/
+.DS_Store

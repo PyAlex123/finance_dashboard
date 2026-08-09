@@ -1,7 +1,9 @@
 {
-  "name": "fin-reports",
+  "name": "finlo",
   "private": true,
   "version": "0.1.0",
+  "description": "Управленческий учёт для малого бизнеса: ДДС, P&L и Баланс из одного журнала операций",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
     "dev": "vite",

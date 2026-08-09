@@ -2,7 +2,7 @@
 
 Один контейнер: **FastAPI отдаёт собранный фронт + API + SQLite**, за уже работающим
 **nginx** с TLS. Основной адрес — корень домена `https://finlo.uz/`; тот же контейнер
-раньше жил на подпути `grammerce.io/dashboards` (вариант поддерживается, см. ниже).
+раньше жил на подпути другого домена (`/dashboards`) — этот вариант тоже поддерживается.
 Вход — через Telegram (Web App внутри мессенджера, через бота — в браузере) и Google.
 
 ```
@@ -20,18 +20,16 @@
 
 ---
 
-## 0. ФАКТЫ ПРОД-СЕРВЕРА (grammerce.io) — не забывать
+## 0. Устройство установки
 
 | Что | Значение |
 |---|---|
-| Домен | `https://finlo.uz/` (старый `grammerce.io/dashboards` — редирект сюда) |
-| IP сервера | `46.8.194.38` — тот же, что у grammerce.io: сайты разделяет `server_name` |
-| **Папка проекта на сервере** | **`/opt/finance_dashboard`** |
-| Ветка, которую тянет сервер | `main` (`origin` = github.com/PyAlex123/finance_dashboard) |
+| Домен | `https://finlo.uz/` |
+| Папка проекта на сервере | `/opt/finance_dashboard` |
+| Ветка, которую тянет сервер | `main` |
 | Порт контейнера (только localhost) | `127.0.0.1:8090` |
 | Имя контейнера / проекта / образа | `finance-dashboard-app` / `finance-dashboard` / `finance-dashboard-app` |
-| Reverse-proxy | nginx: `/etc/nginx/sites-available/finlo.uz` (`location /`) и `…/grammerce.io` (редирект `/dashboards`) |
-| Бот | @financePro (кнопка меню Web App в @BotFather) |
+| Reverse-proxy | nginx, `/etc/nginx/sites-available/finlo.uz` (`location /`) |
 
 **Обновить прод (стандартная последовательность):**
 ```bash
@@ -43,10 +41,12 @@ curl -s http://127.0.0.1:8090/api/health                 # {"status":"ok","teleg
 ```
 (на подпути health был `…:8090/dashboards/api/health` — путь повторяет `BASE_PATH`)
 
-**НЕЛЬЗЯ (иначе ломается ЧУЖОЙ сайт на этом же сервере):**
-- не использовать флаг `-p` у `docker compose` (перебьёт имя проекта);
-- не делать `docker compose down` на нашем проекте — только `up -d --build`;
-- не трогать `/var/www/grammerce` и контейнеры `retail_saas_*` (это другой проект на :8005).
+**Правила для сервера, где рядом живут другие сайты:**
+- не использовать флаг `-p` у `docker compose` — он перебьёт имя проекта, и общий тег
+  образа может затереть чужой стек;
+- не делать `docker compose down` — только `up -d --build`;
+- имена проекта, контейнеров и образа в `docker-compose.yml` зафиксированы уникальными
+  именно ради изоляции от соседних compose-проектов.
 
 ---
 
@@ -76,13 +76,13 @@ curl -s http://127.0.0.1:8090/api/health              # {"status":"ok",...}
 ## 3. nginx: сайт finlo.uz (и переезд с /dashboards)
 
 Сервер и IP те же — добавляется второй виртуальный хост. Готовые файлы лежат в
-[deploy/nginx/](deploy/nginx/): `finlo.uz.conf` (новый сайт) и `grammerce.io.conf`
-(в нём `/dashboards` заменён редиректом на finlo.uz).
+[deploy/nginx/](deploy/nginx/): `finlo.uz.conf` (сайт в корне домена) и
+`legacy-subpath.conf` (редирект со старого подпути `/dashboards`).
 
 **Порядок важен: сначала DNS, потом nginx на :80, потом сертификат, потом пересборка.**
 
-1. **DNS у регистратора** (после регистрации домена): две A-записи на `46.8.194.38` —
-   `@` и `www`. Проверить: `dig +short finlo.uz` → адрес сервера.
+1. **DNS у регистратора** (после регистрации домена): две A-записи —
+   `@` и `www` на IP сервера. Проверить: `dig +short finlo.uz` → адрес сервера.
 2. **Сайт на :80** (TLS ещё нет — блок только `listen 80`, иначе `nginx -t` упадёт):
    ```bash
    sudo cp /opt/finance_dashboard/deploy/nginx/finlo.uz.conf /etc/nginx/sites-available/finlo.uz
@@ -103,8 +103,8 @@ curl -s http://127.0.0.1:8090/api/health              # {"status":"ok",...}
    (`VITE_API_URL` пустым не оставлять — это локальный режим без сервера!)
    Затем пересобрать: `docker compose --env-file .env.docker up -d --build`.
    Бот при старте сам переставит кнопку меню на новый URL.
-5. **Старые ссылки.** В `/etc/nginx/sites-available/grammerce.io` заменить два
-   `location /dashboards…` на редирект (готовый вариант — в `deploy/nginx/grammerce.io.conf`):
+5. **Старые ссылки.** В конфиге прежнего домена заменить два `location /dashboards…`
+   на редирект (готовый вариант — в `deploy/nginx/legacy-subpath.conf`):
    ```nginx
    location = /dashboards { return 301 https://finlo.uz/; }
    location /dashboards/ { rewrite ^/dashboards/(.*)$ https://finlo.uz/$1 permanent; }
@@ -112,7 +112,7 @@ curl -s http://127.0.0.1:8090/api/health              # {"status":"ok",...}
    `sudo nginx -t && sudo systemctl reload nginx`.
 
 Проверка: `curl -I https://finlo.uz/` → 200, `curl -s https://finlo.uz/api/health` → `ok`,
-`curl -I https://grammerce.io/dashboards/` → 301 на finlo.uz.
+старый адрес `…/dashboards/` → 301 на finlo.uz.
 
 Данные пользователей при переезде не трогаются: они привязаны к `tg:<id>`/`g:<sub>`,
 а не к адресу сайта.
@@ -163,7 +163,7 @@ curl -s http://127.0.0.1:8090/api/health              # {"status":"ok",...}
   уже в кабинет. F5 при этом не выкидывает: сессия лежит в `localStorage`. Прямые ссылки
   `/login`, `/privacy`, `/terms`, `/app` и F5 на них должны открываться
   (SPA-fallback на стороне FastAPI).
-- Старый адрес `https://grammerce.io/dashboards/` отвечает 301 на finlo.uz.
+- Старый адрес `…/dashboards/` отвечает 301 на finlo.uz.
 - Логи бота при этом: `docker compose --env-file .env.docker logs -f bot`.
 
 ---

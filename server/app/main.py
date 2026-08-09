@@ -505,19 +505,29 @@ class SpaStaticFiles(StaticFiles):
     """Статика с SPA-fallback: несуществующий путь отдаёт index.html.
 
     Маршруты фронта настоящие (/login, /privacy, /terms, /app), а файлов под
-    ними нет — без этого прямая ссылка и F5 давали бы 404. API-роуты сюда не
-    попадают: они зарегистрированы до mount.
+    ними нет — без этого прямая ссылка и F5 давали бы 404.
+
+    Исключение — /api/*: известные эндпоинты обрабатывает роутер (он подключён до
+    mount), а неизвестные обязаны честно возвращать 404. Иначе клиент получает
+    HTML вместо ответа API и падает где-то дальше с невнятной ошибкой — так,
+    например, старый фронт молча «залипал» на удалённых путях после обновления.
     """
+
+    def _is_api(self, path: str) -> bool:
+        # Starlette отдаёт путь уже как путь файловой системы, поэтому на Windows
+        # разделитель обратный — приводим к одному виду.
+        normalized = path.replace("\\", "/")
+        return normalized == "api" or normalized.startswith("api/")
 
     async def get_response(self, path: str, scope):  # noqa: ANN001 — сигнатура Starlette
         try:
             response = await super().get_response(path, scope)
         except StarletteHTTPException as e:
             # Starlette не возвращает 404, а бросает его — ловим и отдаём оболочку.
-            if e.status_code != 404:
+            if e.status_code != 404 or self._is_api(path):
                 raise
             return await super().get_response("index.html", scope)
-        if response.status_code == 404:
+        if response.status_code == 404 and not self._is_api(path):
             return await super().get_response("index.html", scope)
         return response
 

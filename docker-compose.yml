@@ -36,6 +36,8 @@ services:
       WEBAPP_URL: ${WEBAPP_URL:-https://finlo.uz/}
       PUBLIC_URL: ${PUBLIC_URL:-}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      # Кто видит список пользователей (Telegram id через запятую).
+      ADMIN_TG_IDS: ${ADMIN_TG_IDS:-}
     volumes:
       - app_data:/data
     ports:

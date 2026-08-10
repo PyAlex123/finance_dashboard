@@ -25,7 +25,6 @@ export default function Shell() {
   const route = useRoute()
   const [username, setUser] = useState<string | null>(() => getUsername())
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined)
-  const [workspace, setWorkspace] = useState<string | undefined>(undefined)
   const [isAdmin, setIsAdmin] = useState(false)
   const [module, setModule] = useState<ModuleId | null>(null)
   const [admin, setAdmin] = useState(false)
@@ -86,7 +85,6 @@ export default function Shell() {
   function applySession(session: TelegramSession) {
     setUser(session.name)
     setPhotoUrl(session.photoUrl)
-    setWorkspace(session.workspace)
     setIsAdmin(!!session.isAdmin)
   }
 
@@ -107,7 +105,6 @@ export default function Shell() {
     clearUsername()
     setUser(null)
     setPhotoUrl(undefined)
-    setWorkspace(undefined)
     setIsAdmin(false)
     setModule(null)
     setAdmin(false)

@@ -46,13 +46,20 @@ export default function Shell() {
 
       const token = takeTokenFromUrl()
       if (token) {
+        // Переход по ссылке из бота — намерение войти заново, возможно другим
+        // аккаунтом. Прежнюю сессию гасим СРАЗУ: иначе при негодной ссылке
+        // сработало бы восстановление ниже и человек оказался бы в чужом
+        // кабинете — том, что остался в этом браузере от прошлого входа.
+        disconnectBackend()
         const session = await connectWithToken(token)
-        if (session && !cancelled) {
+        if (cancelled) return
+        if (session) {
           applySession(session)
           navigate('/app')
           return
         }
-        if (!cancelled) navigate('/login?error=auth_expired')
+        navigate('/login?error=auth_expired')
+        return
       }
 
       const restored = await restoreSession()

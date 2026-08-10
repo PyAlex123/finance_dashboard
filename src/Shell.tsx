@@ -125,7 +125,6 @@ export default function Shell() {
       <ModuleChooser
         username={username}
         photoUrl={photoUrl}
-        tgId={workspace?.startsWith('tg:') ? workspace.slice(3) : undefined}
         isAdmin={isAdmin}
         onOpenAdmin={() => setAdmin(true)}
         onPick={setModule}

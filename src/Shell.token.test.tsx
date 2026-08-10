@@ -61,6 +61,20 @@ describe('Возврат из бота и сохранённая сессия', 
     expect(await screen.findByText(/Ссылка для входа устарела/)).toBeInTheDocument()
   })
 
+  it('негодный токен не пускает под ранее сохранённым профилем', async () => {
+    // Классический случай: в браузере осталась сессия одного человека, а по
+    // ссылке из бота приходит другой. Ссылка протухла — значит вход не состоялся,
+    // и показать чужой кабинет нельзя ни при каких условиях.
+    connectWithToken.mockResolvedValueOnce(null as never)
+    restoreSession.mockResolvedValue({ name: 'Алекс', workspace: 'tg:9' })
+    window.history.pushState({}, '', '/login#token=stale')
+    renderShell()
+
+    expect(await screen.findByText(/Ссылка для входа устарела/)).toBeInTheDocument()
+    expect(screen.queryByText(/Здравствуйте, Алекс/)).toBeNull()
+    expect(screen.queryByText('Выберите модуль')).toBeNull()
+  })
+
   it('сохранённая сессия открывает кабинет без экрана входа', async () => {
     restoreSession.mockResolvedValue({ name: 'Алекс', workspace: 'tg:9' })
     window.history.pushState({}, '', '/app')

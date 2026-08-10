@@ -25,7 +25,6 @@ export default function Shell() {
   const route = useRoute()
   const [username, setUser] = useState<string | null>(() => getUsername())
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined)
-  const [workspace, setWorkspace] = useState<string | undefined>(undefined)
   const [isAdmin, setIsAdmin] = useState(false)
   const [module, setModule] = useState<ModuleId | null>(null)
   const [admin, setAdmin] = useState(false)
@@ -46,13 +45,20 @@ export default function Shell() {
 
       const token = takeTokenFromUrl()
       if (token) {
+        // Переход по ссылке из бота — намерение войти заново, возможно другим
+        // аккаунтом. Прежнюю сессию гасим СРАЗУ: иначе при негодной ссылке
+        // сработало бы восстановление ниже и человек оказался бы в чужом
+        // кабинете — том, что остался в этом браузере от прошлого входа.
+        disconnectBackend()
         const session = await connectWithToken(token)
-        if (session && !cancelled) {
+        if (cancelled) return
+        if (session) {
           applySession(session)
           navigate('/app')
           return
         }
-        if (!cancelled) navigate('/login?error=auth_expired')
+        navigate('/login?error=auth_expired')
+        return
       }
 
       const restored = await restoreSession()
@@ -79,7 +85,6 @@ export default function Shell() {
   function applySession(session: TelegramSession) {
     setUser(session.name)
     setPhotoUrl(session.photoUrl)
-    setWorkspace(session.workspace)
     setIsAdmin(!!session.isAdmin)
   }
 
@@ -100,7 +105,6 @@ export default function Shell() {
     clearUsername()
     setUser(null)
     setPhotoUrl(undefined)
-    setWorkspace(undefined)
     setIsAdmin(false)
     setModule(null)
     setAdmin(false)
@@ -125,7 +129,6 @@ export default function Shell() {
       <ModuleChooser
         username={username}
         photoUrl={photoUrl}
-        tgId={workspace?.startsWith('tg:') ? workspace.slice(3) : undefined}
         isAdmin={isAdmin}
         onOpenAdmin={() => setAdmin(true)}
         onPick={setModule}

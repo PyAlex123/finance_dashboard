@@ -1,15 +1,17 @@
 import { useAppSelector } from '../../store/hooks'
 import { selectChecks } from '../../store/reportSelectors'
 import { formatMoney } from '../../domain/money'
+import { useT } from '../../i18n/react'
 
 export default function ChecksPanel() {
+  const t = useT()
   const checks = useAppSelector(selectChecks)
   const allOk = checks.every((c) => c.ok)
 
   return (
     <aside className="checks">
       <div className={`checks__head ${allOk ? 'checks__head--ok' : 'checks__head--bad'}`}>
-        {allOk ? '✓ Все контрольные суммы сходятся' : '⚠ Есть расхождения'}
+        {allOk ? t('checks.allOk') : t('checks.hasIssues')}
       </div>
       <ul className="checks__list">
         {checks.map((c) => (

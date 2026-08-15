@@ -8,19 +8,25 @@ import {
 } from '../../store/dataSlice'
 import { buildAutoCfItems } from '../../engine/autoCf'
 import { parseFormula } from '../../engine/formula/parser'
+import { formatDateTime } from '../../i18n/format'
 import type { Account, AggRule, Category, Item, ItemKind, ReportForm, TemplateVersion } from '../../domain/types'
 import type { RootState } from '../../store'
+import { t, type Key } from '../../i18n'
+import { useT } from '../../i18n/react'
 
 const selectVersions = (s: RootState): TemplateVersion[] => s.data.templateVersions
 
-const KIND_LABEL: Record<ItemKind, string> = {
-  header: 'Заголовок', input: 'Ввод', agg: 'Агрегат', calc: 'Формула',
-}
-const MEASURES: { value: AggRule['measure']; label: string }[] = [
-  { value: 'in', label: 'Приход' },
-  { value: 'out', label: 'Расход' },
-  { value: 'net', label: 'Сальдо' },
-  { value: 'balance', label: 'Остаток' },
+// Функции и ключи вместо констант: подписи зависят от языка, а константа
+// заморозила бы язык, активный при импорте модуля (см. src/App.tsx).
+const kindLabels = (): Record<ItemKind, string> => ({
+  header: t('tpl.kind.header'), input: t('tpl.kind.input'),
+  agg: t('tpl.kind.agg'), calc: t('tpl.kind.calc'),
+})
+const MEASURES: { value: AggRule['measure']; labelKey: Key }[] = [
+  { value: 'in', labelKey: 'tpl.measure.in' },
+  { value: 'out', labelKey: 'tpl.measure.out' },
+  { value: 'net', labelKey: 'tpl.measure.net' },
+  { value: 'balance', labelKey: 'tpl.measure.balance' },
 ]
 
 function genCode(): string {
@@ -35,6 +41,7 @@ function depthOf(code: string, parentByCode: Map<string, string | null>): number
 }
 
 export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
+  useT() // подписка на смену языка для всего редактора
   const dispatch = useAppDispatch()
   const allItems = useAppSelector(selectItems)
   const categories = useAppSelector(selectCategories)
@@ -54,21 +61,16 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
         <div className="tpl__pane">
           <div className="tpl__header">
             <div>
-              <div className="tpl__eyebrow">Структура отчёта</div>
-              <h2 className="tpl__title">Отчёт ДДС — автоматический</h2>
+              <div className="tpl__eyebrow">{t('tpl.eyebrow')}</div>
+              <h2 className="tpl__title">{t('tpl.auto.title')}</h2>
             </div>
           </div>
           <div className="tpl__autobox">
             <p>
-              Отчёт ДДС формируется <b>автоматически</b> из ваших категорий и счетов:
-              «Поступления» — по доходным категориям, «Списания» — по расходным,
-              «Остатки по счетам», плюс итоги и чистый поток. Ничего настраивать не нужно —
-              просто вносите операции в «Журнале».
+              {t('tpl.auto.body')}
             </p>
             <p className="tpl__muted">
-              Продвинутое: можно перейти к ручной настройке структуры (переименовать,
-              переставить, добавить свои строки и формулы). Текущая авто-структура станет
-              отправной точкой.
+              {t('tpl.auto.advanced')}
             </p>
             <button
               className="btn btn--primary btn--small"
@@ -77,7 +79,7 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
                 dispatch(setCfAuto(false))
               }}
             >
-              Настроить вручную
+              {t('tpl.auto.switch')}
             </button>
           </div>
         </div>
@@ -110,7 +112,7 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
       parentCode,
       order: maxOrder + 1,
       form,
-      name: 'Новая статья',
+      name: t('tpl.newItem'),
     }
     // для форм без журнала (P&L) новая статья — ручной ввод; для ДДС — агрегат
     dispatch(upsertItem(
@@ -125,21 +127,21 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
       <div className="tpl__pane">
         <div className="tpl__header">
           <div>
-            <div className="tpl__eyebrow">Структура отчёта</div>
-            <h2 className="tpl__title">Редактор шаблона {form === 'pl' ? 'P&L' : 'ДДС'}</h2>
+            <div className="tpl__eyebrow">{t('tpl.eyebrow')}</div>
+            <h2 className="tpl__title">{t('tpl.title', { form: form === 'pl' ? 'P&L' : t('seed.template.cf') })}</h2>
           </div>
           <div className="tpl__headbtns">
             {form === 'cf' && (
               <button
                 className="btn btn--small"
-                title="Вернуть автоматический отчёт из категорий и счетов"
+                title={t('tpl.backToAuto.title')}
                 onClick={() => dispatch(setCfAuto(true))}
               >
-                ← Автоматически
+                {t('tpl.backToAuto')}
               </button>
             )}
             <button className="btn btn--primary btn--small" onClick={() => addItem(null)}>
-              + Статья верхнего уровня
+              {t('tpl.addTopLevel')}
             </button>
           </div>
         </div>
@@ -149,7 +151,7 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
         <table className="tpl__table">
           <thead>
             <tr>
-              <th>Статья</th><th>Вид</th><th>Правило / формула</th><th>Родитель</th><th></th>
+              <th>{t('tpl.col.item')}</th><th>{t('tpl.col.kind')}</th><th>{t('tpl.col.rule')}</th><th>{t('tpl.col.parent')}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -158,15 +160,15 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
               return (
                 <tr key={item.id} className={`tpl__row tpl__row--${item.kind}`}>
                   <td style={{ paddingLeft: 8 + depth * 16 }}>
-                    <span className="tpl__grip" title="Порядок и вложенность">⋮⋮</span>
+                    <span className="tpl__grip" title={t('tpl.grip')}>⋮⋮</span>
                     <input className="tpl__name" value={item.name}
                       onChange={(e) => patch(item, { name: e.target.value })} />
                     <span className="tpl__code">{item.code}</span>
                   </td>
                   <td>
                     <select value={item.kind} onChange={(e) => changeKind(item, e.target.value as ItemKind)}>
-                      {(Object.keys(KIND_LABEL) as ItemKind[]).map((k) => (
-                        <option key={k} value={k}>{KIND_LABEL[k]}</option>
+                      {(Object.keys(kindLabels()) as ItemKind[]).map((k) => (
+                        <option key={k} value={k}>{kindLabels()[k]}</option>
                       ))}
                     </select>
                   </td>
@@ -176,17 +178,17 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
                   <td>
                     <select value={item.parentCode ?? ''}
                       onChange={(e) => patch(item, { parentCode: e.target.value || null })}>
-                      <option value="">— нет —</option>
+                      <option value="">{t('tpl.parent.none')}</option>
                       {items.filter((i) => i.code !== item.code).map((i) => (
                         <option key={i.code} value={i.code}>{i.name}</option>
                       ))}
                     </select>
                   </td>
                   <td className="tpl__actions">
-                    <button className="btn btn--small" title="Вверх" onClick={() => dispatch(moveItem({ code: item.code, dir: 'up' }))}>↑</button>
-                    <button className="btn btn--small" title="Вниз" onClick={() => dispatch(moveItem({ code: item.code, dir: 'down' }))}>↓</button>
-                    <button className="btn btn--small" title="Добавить дочернюю" onClick={() => addItem(item.code)}>+</button>
-                    <button className="btn btn--small btn--danger" title="Удалить" onClick={() => dispatch(deleteItem(item.code))}>✕</button>
+                    <button className="btn btn--small" title={t('tpl.move.up')} onClick={() => dispatch(moveItem({ code: item.code, dir: 'up' }))}>↑</button>
+                    <button className="btn btn--small" title={t('tpl.move.down')} onClick={() => dispatch(moveItem({ code: item.code, dir: 'down' }))}>↓</button>
+                    <button className="btn btn--small" title={t('tpl.addChild')} onClick={() => addItem(item.code)}>+</button>
+                    <button className="btn btn--small btn--danger" title={t('common.delete')} onClick={() => dispatch(deleteItem(item.code))}>✕</button>
                   </td>
                 </tr>
               )
@@ -197,12 +199,12 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
       </div>
 
       <aside className="tpl__versions">
-        <h3>Версии шаблона</h3>
+        <h3>{t('tpl.versions')}</h3>
         <div className="tpl__save">
-          <input placeholder="имя версии" value={versionName} onChange={(e) => setVersionName(e.target.value)} />
+          <input placeholder={t('tpl.version.placeholder')} value={versionName} onChange={(e) => setVersionName(e.target.value)} />
           <button className="btn btn--primary btn--small" disabled={!versionName.trim()}
             onClick={() => { dispatch(saveTemplateVersion(versionName.trim())); setVersionName('') }}>
-            Сохранить снимок
+            {t('tpl.version.save')}
           </button>
         </div>
         <ul className="tpl__vlist">
@@ -210,15 +212,15 @@ export default function TemplateEditor({ form = 'cf' }: { form?: ReportForm }) {
             <li key={v.id} className="tpl__vitem">
               <div>
                 <div className="tpl__vname">{v.name}</div>
-                <div className="tpl__vdate">{new Date(v.createdAt).toLocaleString('ru')} · {v.items.length} статей</div>
+                <div className="tpl__vdate">{t('tpl.version.meta', { date: formatDateTime(v.createdAt), count: v.items.length })}</div>
               </div>
               <div className="tpl__vactions">
-                <button className="btn btn--small" onClick={() => dispatch(restoreTemplateVersion(v.id))}>Восстановить</button>
+                <button className="btn btn--small" onClick={() => dispatch(restoreTemplateVersion(v.id))}>{t('tpl.version.restore')}</button>
                 <button className="btn btn--small btn--danger" onClick={() => dispatch(deleteTemplateVersion(v.id))}>✕</button>
               </div>
             </li>
           ))}
-          {versions.length === 0 && <li className="tpl__empty">Снимков пока нет</li>}
+          {versions.length === 0 && <li className="tpl__empty">{t('tpl.version.empty')}</li>}
         </ul>
       </aside>
     </div>
@@ -239,16 +241,16 @@ function RuleEditor({
     return (
       <div className="tpl__rule">
         <select value={rule.measure} onChange={(e) => setRule({ measure: e.target.value as AggRule['measure'] })}>
-          {MEASURES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+          {MEASURES.map((m) => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
         </select>
         {rule.measure === 'balance' ? (
           <select value={rule.accountCode ?? ''} onChange={(e) => setRule({ accountCode: e.target.value || undefined })}>
-            <option value="">все счета</option>
+            <option value="">{t('tpl.allAccounts')}</option>
             {accounts.map((a) => <option key={a.code} value={a.code}>{a.name}</option>)}
           </select>
         ) : (
           <select value={rule.categoryCode ?? ''} onChange={(e) => setRule({ categoryCode: e.target.value || undefined })}>
-            <option value="">все категории</option>
+            <option value="">{t('tpl.allCategories')}</option>
             {categories.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
           </select>
         )}
@@ -267,5 +269,5 @@ function RuleEditor({
       </div>
     )
   }
-  return <span className="tpl__muted">{item.kind === 'header' ? '—' : 'ручной ввод'}</span>
+  return <span className="tpl__muted">{item.kind === 'header' ? t('common.dash') : t('tpl.manualInput')}</span>
 }

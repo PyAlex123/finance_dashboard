@@ -1,10 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit'
 import dataReducer from './dataSlice'
+import uiReducer from './uiSlice'
 
 export function makeStore() {
   return configureStore({
     reducer: {
       data: dataReducer,
+      ui: uiReducer,
     },
     middleware: (getDefault) =>
       // Деньги — bigint; штатная проверка сериализуемости RTK на них ругается.

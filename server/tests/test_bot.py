@@ -75,12 +75,12 @@ class _Response:
         return False
 
 
-def run_start(text, issue, rec):
+def run_start(text, issue, rec, user=None):
     """Прогоняет /start через бота с подменёнными сетевыми вызовами."""
     original_api, bot.api = bot.api, rec
     original_open, bot.urllib.request.urlopen = bot.urllib.request.urlopen, issue
     try:
-        bot.handle_update({"message": {"chat": {"id": 1}, "text": text, "from": USER}})
+        bot.handle_update({"message": {"chat": {"id": 1}, "text": text, "from": user or USER}})
     finally:
         bot.api = original_api
         bot.urllib.request.urlopen = original_open
@@ -130,6 +130,40 @@ def test_issue_failure_tells_user():
     msg = rec.payload("sendMessage")
     assert "не удалось" in msg["text"].lower()
     assert "reply_markup" not in msg  # кнопки нет — нажимать нечего
+
+
+# --- Язык сообщений -------------------------------------------------------
+# Язык берём из самого апдейта Telegram (message.from.language_code): ни колонки
+# в БД, ни состояния сессии для этого не нужно.
+
+def test_message_language_follows_telegram_user():
+    for code, needle in [("ru", "Вход в finlo"), ("en", "Sign in to finlo"),
+                         ("uz", "finlo tizimiga kirish")]:
+        rec, issue = Recorder(), FakeIssue()
+        run_start("/start", issue, rec, user={**USER, "language_code": code})
+        assert needle in rec.payload("sendMessage")["text"], code
+
+
+def test_buttons_are_localised():
+    rec, issue = Recorder(), FakeIssue()
+    run_start("/start", issue, rec, user={**USER, "language_code": "en"})
+    keyboard = rec.payload("sendMessage")["reply_markup"]["inline_keyboard"]
+    labels = [b["text"] for row in keyboard for b in row]
+    assert any("Start for free" in x for x in labels)
+    assert any("Open here, in Telegram" in x for x in labels)
+
+
+def test_unknown_language_falls_back_to_russian():
+    for code in ("de", "", None):
+        rec, issue = Recorder(), FakeIssue()
+        run_start("/start", issue, rec, user={**USER, "language_code": code})
+        assert "Вход в finlo" in rec.payload("sendMessage")["text"], repr(code)
+
+
+def test_failure_message_is_localised_too():
+    rec, issue = Recorder(), FakeIssue(fail=True)
+    run_start("/start", issue, rec, user={**USER, "language_code": "en"})
+    assert "try again" in rec.payload("sendMessage")["text"].lower()
 
 
 if __name__ == "__main__":

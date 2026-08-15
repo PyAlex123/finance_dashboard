@@ -22,15 +22,24 @@ function format(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
+/**
+ * Досчёт числа от нуля при появлении.
+ *
+ * Пишет ТОЛЬКО число и только в свой элемент. Всё остальное (подпись валюты,
+ * любой другой текст) обязано жить в соседних узлах, которыми владеет React:
+ * присваивание textContent схлопывает детей в один текстовый узел, и React
+ * потом не может обновить то, что считал своим — элемент навсегда застревает
+ * на языке, на котором страница открылась. Раньше суффикс подмешивался сюда,
+ * и ровно так этот баг и выглядел.
+ */
 function countUp(el: HTMLElement): void {
   const target = parseFloat(el.dataset.count ?? '')
   if (!Number.isFinite(target)) return
-  const suffix = /сум/.test(el.textContent ?? '') ? ' сум' : ''
   const start = performance.now()
   const tick = (now: number) => {
     const p = Math.min(1, (now - start) / 1000)
     const eased = 1 - Math.pow(1 - p, 3)
-    el.textContent = format(target * eased) + suffix
+    el.textContent = format(target * eased)
     if (p < 1) requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)

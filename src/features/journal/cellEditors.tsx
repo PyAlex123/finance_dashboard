@@ -10,6 +10,7 @@ import { upsertCategory } from '../../store/dataSlice'
 import { toMajorNumber, type Money } from '../../domain/money'
 import { directionForType } from './rowEdit'
 import type { JournalRow } from './journalRows'
+import { t } from '../../i18n'
 
 const NEW_CATEGORY = '__new__'
 
@@ -88,7 +89,7 @@ export const CategoryCellEditor = forwardRef((props: ICellEditorParams<JournalRo
         <input
           autoFocus
           value={name}
-          placeholder="Название категории"
+          placeholder={t('journal.category.placeholder')}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') commitNew() }}
           onBlur={commitNew}
@@ -107,9 +108,9 @@ export const CategoryCellEditor = forwardRef((props: ICellEditorParams<JournalRo
         else setValue(e.target.value || null)
       }}
     >
-      <option value="">—</option>
+      <option value="">{t('common.dash')}</option>
       {options.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      <option value={NEW_CATEGORY}>＋ Новая категория…</option>
+      <option value={NEW_CATEGORY}>{t('journal.category.new')}</option>
     </select>
   )
 })

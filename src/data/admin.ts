@@ -2,6 +2,7 @@
 // (сервер проверяет JWT против ADMIN_TG_IDS), поэтому шлём токен сессии.
 
 import { API_URL, getSession } from './backend'
+import { t } from '../i18n'
 
 export interface AdminUser {
   tgId: string
@@ -23,6 +24,6 @@ export async function listUsers(): Promise<AdminUsers> {
   const res = await fetch(`${API_URL.replace(/\/+$/, '')}/api/admin/users`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
-  if (!res.ok) throw new Error(`Сервер вернул ${res.status}`)
+  if (!res.ok) throw new Error(t('net.error.status', { status: res.status }))
   return (await res.json()) as AdminUsers
 }

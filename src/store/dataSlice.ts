@@ -16,7 +16,7 @@ import type {
   ReportForm,
 } from '../domain/types'
 import type { Money } from '../domain/money'
-import { buildFixtureSnapshot, DEFAULT_ACCOUNTS } from '../data/fixtures'
+import { buildFixtureSnapshot, defaultAccounts } from '../data/fixtures'
 
 export type DataState = DataSnapshot
 
@@ -86,19 +86,25 @@ const dataSlice = createSlice({
      * если у пользователя уже есть «Карта», добавятся только Р/С и Наличные.
      * Выполняется один раз на набор данных — удалённые вручную счета не возвращаются.
      */
-    ensureDefaultAccounts(state) {
-      if (state.defaultsSeeded) return
-      const norm = (s: string) => s.trim().toLowerCase()
-      const codes = new Set(state.accounts.map((a) => a.code))
-      const names = new Set(state.accounts.map((a) => norm(a.name)))
-      let order = state.accounts.reduce((m, a) => Math.max(m, a.order), 0)
-      for (const def of DEFAULT_ACCOUNTS) {
-        if (codes.has(def.code) || names.has(norm(def.name))) continue
-        state.accounts.push({ ...structuredClone(def), order: ++order })
-        codes.add(def.code)
-        names.add(norm(def.name))
-      }
-      state.defaultsSeeded = true
+    // Счета приходят payload'ом, а не читаются из окружения: чтение текущего
+    // языка прямо здесь сделало бы редьюсер нечистым. prepare подставляет их по
+    // умолчанию, поэтому вызовы dispatch(ensureDefaultAccounts()) не изменились.
+    ensureDefaultAccounts: {
+      reducer(state, action: PayloadAction<Account[]>) {
+        if (state.defaultsSeeded) return
+        const norm = (s: string) => s.trim().toLowerCase()
+        const codes = new Set(state.accounts.map((a) => a.code))
+        const names = new Set(state.accounts.map((a) => norm(a.name)))
+        let order = state.accounts.reduce((m, a) => Math.max(m, a.order), 0)
+        for (const def of action.payload) {
+          if (codes.has(def.code) || names.has(norm(def.name))) continue
+          state.accounts.push({ ...structuredClone(def), order: ++order })
+          codes.add(def.code)
+          names.add(norm(def.name))
+        }
+        state.defaultsSeeded = true
+      },
+      prepare: (accounts: Account[] = defaultAccounts()) => ({ payload: accounts }),
     },
     /** Переименовать код счёта и каскадно обновить ссылки в правилах агрегатов. */
     renameAccountCode(state, action: PayloadAction<{ id: string; code: string }>) {

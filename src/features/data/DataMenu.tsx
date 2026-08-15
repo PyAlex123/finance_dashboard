@@ -7,6 +7,7 @@ import { exportXlsx, importXlsx } from '../../data/xlsx'
 import { buildFixtureSnapshot, buildEmptySnapshot } from '../../data/fixtures'
 import ImportWizard from '../import/ImportWizard'
 import { useToast } from '../ui/Toast'
+import { useT } from '../../i18n/react'
 
 export default function DataMenu({
   open, onToggle, onClose,
@@ -18,6 +19,7 @@ export default function DataMenu({
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
   const toast = useToast()
+  const t = useT()
   const fileRef = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState('')
   const [wizardBuf, setWizardBuf] = useState<ArrayBuffer | null>(null)
@@ -35,7 +37,7 @@ export default function DataMenu({
 
   function doExportJson() {
     download(exportJson(data), `dds-${stamp()}.json`, 'application/json')
-    toast('Экспорт JSON — готово')
+    toast(t('data.export.json.done'))
   }
   function doExportXlsx() {
     download(
@@ -43,7 +45,7 @@ export default function DataMenu({
       `dds-${stamp()}.xlsx`,
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    toast('Экспорт Excel — готово')
+    toast(t('data.export.xlsx.done'))
   }
 
   async function doImport(file: File) {
@@ -53,40 +55,43 @@ export default function DataMenu({
         try {
           // свой файл (со скрытым листом «Данные») — грузим напрямую
           dispatch(hydrate(importXlsx(buf)))
-          setMsg('Импортировано ✓')
+          setMsg(t('data.imported'))
         } catch {
           // произвольный Excel — открываем мастер сопоставления
           setWizardBuf(buf)
         }
       } else {
         dispatch(hydrate(importJson(await file.text())))
-        setMsg('Импортировано ✓')
+        setMsg(t('data.imported'))
       }
     } catch (e) {
-      setMsg('Ошибка импорта: ' + (e instanceof Error ? e.message : String(e)))
+      setMsg(t('data.import.error', { message: e instanceof Error ? e.message : String(e) }))
     }
     setTimeout(() => setMsg(''), 3000)
   }
 
+  // Массив строится в рендере, а не в теле модуля: подписи и тексты confirm()
+  // обязаны следовать за текущим языком.
   const actions: { label: string; onClick: () => void }[] = [
-    { label: 'Экспорт Excel', onClick: doExportXlsx },
-    { label: 'Экспорт JSON', onClick: doExportJson },
-    { label: 'Импорт (JSON / Excel)', onClick: () => fileRef.current?.click() },
+    { label: t('data.export.xlsx'), onClick: doExportXlsx },
+    { label: t('data.export.json'), onClick: doExportJson },
+    { label: t('data.import'), onClick: () => fileRef.current?.click() },
     {
-      label: 'Загрузить пример',
+      label: t('data.loadExample'),
       onClick: () => {
-        if (confirm('Загрузить учебный пример (янв–март)? Текущие данные будут заменены.')) {
+        if (confirm(t('data.loadExample.confirm'))) {
+          // Демо-данные создаются на текущем языке (см. data/fixtures.ts).
           dispatch(hydrate(buildFixtureSnapshot()))
-          toast('Учебный пример загружен')
+          toast(t('data.loadExample.done'))
         }
       },
     },
     {
-      label: 'Чистый лист',
+      label: t('data.blank'),
       onClick: () => {
-        if (confirm('Очистить всё до чистого листа? Текущие данные будут удалены.')) {
+        if (confirm(t('data.blank.confirm'))) {
           dispatch(hydrate(buildEmptySnapshot()))
-          toast('Чистый лист готов')
+          toast(t('data.blank.done'))
         }
       },
     },
@@ -95,7 +100,7 @@ export default function DataMenu({
   return (
     <div className="datamenu">
       <button className="btn datamenu__trigger" onClick={onToggle}>
-        <span className="datamenu__dots">⋯</span>Данные
+        <span className="datamenu__dots">⋯</span>{t('data.menu')}
       </button>
       {open && (
         <div className="datamenu__panel">

@@ -673,3 +673,14 @@ input::placeholder, textarea::placeholder { color: #9fb2ac; }
   .typefilter { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
   .typefilter__btn { white-space: nowrap; }
 }
+
+/* --- Переключатель языка -------------------------------------------------- */
+/* Три коротких кнопки в один ряд: помещаются и в шапку кабинета, и в шапку
+   лендинга, не отбирая места у основных действий. */
+.langswitch { display: inline-flex; align-items: center; gap: 2px;
+  border: 1px solid var(--border); border-radius: 8px; padding: 2px; background: #fff; }
+.langswitch__btn { padding: 4px 8px; border: 0; background: transparent; color: var(--muted);
+  border-radius: 6px; cursor: pointer; font: 600 12px 'Manrope', sans-serif;
+  transition: background .12s, color .12s; }
+.langswitch__btn:hover { color: var(--forest); }
+.langswitch__btn.is-active { background: var(--forest); color: #fff; }

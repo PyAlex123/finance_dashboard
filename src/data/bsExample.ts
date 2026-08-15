@@ -4,7 +4,7 @@
 
 import type { CellValue, Item, PeriodKey } from '../domain/types'
 import { fromMajor } from '../domain/money'
-import { BS_ITEMS } from './bsTemplate'
+import { buildBsItems } from './bsTemplate'
 
 // Баланс — снимок на дату; колонка = дата среза (месяц). Один срез: март 2025.
 export const BS_PERIODS: PeriodKey[] = ['2025-03']
@@ -40,7 +40,7 @@ export function buildBsExampleCells(): CellValue[] {
 /** Полный учебный набор Баланса: статьи шаблона + даты-срезы + значения. */
 export function buildBsExample(): { items: Item[]; periods: PeriodKey[]; cellValues: CellValue[] } {
   return {
-    items: structuredClone(BS_ITEMS),
+    items: buildBsItems(),
     periods: [...BS_PERIODS],
     cellValues: buildBsExampleCells(),
   }

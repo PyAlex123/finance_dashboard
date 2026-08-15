@@ -1,16 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import {
-  accounts,
-  categories,
-  operations,
-  operationLines,
-  openingBalances,
-  buildFixtureSnapshot,
-} from './fixtures'
+import { openingBalances, buildFixtureSnapshot } from './fixtures'
 import { sum } from '../domain/money'
 import { isValidDate } from '../engine/periods'
 
 describe('целостность фикстуры', () => {
+  // Счета, категории и журнал больше не модульные константы: они строятся на
+  // языке, активном в момент создания демо-данных. Берём их из готового снимка —
+  // так тест заодно проверяет ровно тот набор, который увидит пользователь.
+  const snapshot = buildFixtureSnapshot()
+  const { accounts, categories, operations, operationLines } = snapshot
   const accIds = new Set(accounts.map((a) => a.id))
   const catIds = new Set(categories.map((c) => c.id))
   const opIds = new Set(operations.map((o) => o.id))

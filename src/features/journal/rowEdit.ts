@@ -6,6 +6,7 @@ import type {
   Account, Category, Operation, OperationLine, OperationType,
 } from '../../domain/types'
 import type { Money } from '../../domain/money'
+import { t } from '../../i18n'
 
 export interface RowSnapshot {
   id: string
@@ -90,9 +91,9 @@ function isoFromDate(d: Date): string {
 /** Подпись даты в журнале: сегодняшняя — словом «Сегодня», вчерашняя — «Вчера». */
 export function formatDateLabel(date: string): string {
   if (!date) return ''
-  if (date === todayIso()) return 'Сегодня'
+  if (date === todayIso()) return t('journal.today')
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
-  if (date === isoFromDate(yesterday)) return 'Вчера'
+  if (date === isoFromDate(yesterday)) return t('journal.yesterday')
   return date
 }

@@ -21,6 +21,7 @@ import urllib.error
 import urllib.request
 
 from .auth import jwt_encode
+from .bot_i18n import bt
 from .config import INTERNAL_API_URL, JWT_SECRET, TELEGRAM_BOT_TOKEN, WEBAPP_URL
 
 API = "https://api.telegram.org/bot{token}/{method}"
@@ -44,7 +45,13 @@ def api(method: str, payload: dict | None = None, timeout: int = 65) -> dict:
 
 
 def set_menu_button() -> None:
-    """Левая кнопка-меню чата «Кабинет» → открывает Web App (для всех пользователей)."""
+    """Левая кнопка-меню чата «Кабинет» → открывает Web App (для всех пользователей).
+
+    ОГРАНИЧЕНИЕ: setChatMenuButton вызывается здесь глобально, без области чата,
+    поэтому подпись физически не может зависеть от языка конкретного человека —
+    она одна на всех. Остаётся русской до перехода на вызовы со
+    scope={'type': 'chat', 'chat_id': …} для каждого чата отдельно.
+    """
     r = api("setChatMenuButton", {
         "menu_button": {
             "type": "web_app",
@@ -91,21 +98,17 @@ def send_login_link(chat_id: int, user: dict) -> None:
     if not link:
         api("sendMessage", {
             "chat_id": chat_id,
-            "text": "Не удалось подготовить вход. Попробуйте ещё раз через минуту.",
+            "text": bt("login.failed", user),
         })
         return
     api("sendMessage", {
         "chat_id": chat_id,
-        "text": (
-            "Вход в finlo\n\n"
-            "Нажмите кнопку ниже — откроется браузер, и вы сразу окажетесь в кабинете.\n"
-            "Ссылка одноразовая и действует несколько минут."
-        ),
+        "text": bt("login.body", user),
         "reply_markup": {
             "inline_keyboard": [
-                [{"text": "🚀 Открыть finlo" if link.get("hasData") else "✅ Начать бесплатно",
+                [{"text": bt("login.open" if link.get("hasData") else "login.start", user),
                   "url": link["consumeUrl"]}],
-                [{"text": "📱 Открыть здесь, в Telegram", "web_app": {"url": WEBAPP_URL}}],
+                [{"text": bt("login.inTelegram", user), "web_app": {"url": WEBAPP_URL}}],
             ]
         },
     })

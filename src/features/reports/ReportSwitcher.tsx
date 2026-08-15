@@ -4,6 +4,8 @@ import { connectReport, getSession } from '../../data/backend'
 import {
   createReport, deleteReport, listReports, renameReport, type ReportMeta,
 } from '../../data/reports'
+import { useT } from '../../i18n/react'
+import { t as translate } from '../../i18n'
 
 // Переключатель отчётов внутри модуля (серверный режим). У пользователя может быть
 // несколько отчётов одного типа; тело каждого — свой снимок. Компонент грузит список
@@ -11,13 +13,17 @@ import {
 // всегда был приёмник автосохранения.
 export default function ReportSwitcher({
   form,
-  defaultName = 'Новый отчёт',
+  defaultName,
   onAfterConnect,
 }: {
   form: ReportForm
   defaultName?: string
   onAfterConnect?: () => void
 }) {
+  const t = useT()
+  // Имя нового отчёта уходит на сервер обычной строкой, то есть замерзает на
+  // языке, активном в момент создания (решение «локализуем при создании»).
+  const fallbackName = defaultName ?? translate('rswitch.defaultName')
   const [list, setList] = useState<ReportMeta[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [busy, setBusy] = useState(true)
@@ -52,7 +58,7 @@ export default function ReportSwitcher({
         let items = await reload()
         if (cancelled) return
         if (items.length === 0 && getSession()) {
-          const meta = await createReport(form, defaultName)
+          const meta = await createReport(form, fallbackName)
           if (cancelled) return
           items = await reload()
           await activate(meta.id)
@@ -61,7 +67,7 @@ export default function ReportSwitcher({
         }
       } catch (e) {
         if (!cancelled) {
-          setError('Не удалось загрузить отчёты')
+          setError(t('rswitch.error.load'))
           console.warn(e)
         }
       } finally {
@@ -70,10 +76,10 @@ export default function ReportSwitcher({
     }
     void init()
     return () => { cancelled = true }
-  }, [reload, activate, form, defaultName])
+  }, [reload, activate, form, fallbackName])
 
   async function onCreate() {
-    const name = window.prompt('Название нового отчёта:', defaultName)?.trim()
+    const name = window.prompt(t('rswitch.create.prompt'), fallbackName)?.trim()
     if (!name) return
     setBusy(true)
     try {
@@ -81,7 +87,7 @@ export default function ReportSwitcher({
       await reload()
       await activate(meta.id)
     } catch (e) {
-      setError('Не удалось создать отчёт')
+      setError(t('rswitch.error.create'))
       console.warn(e)
     } finally {
       setBusy(false)
@@ -91,28 +97,28 @@ export default function ReportSwitcher({
   async function onRename() {
     if (!activeId) return
     const current = list.find((r) => r.id === activeId)?.name ?? ''
-    const name = window.prompt('Новое название отчёта:', current)?.trim()
+    const name = window.prompt(t('rswitch.rename.prompt'), current)?.trim()
     if (!name || name === current) return
     try {
       await renameReport(activeId, name)
       await reload()
     } catch (e) {
-      setError('Не удалось переименовать')
+      setError(t('rswitch.error.rename'))
       console.warn(e)
     }
   }
 
   async function onDelete() {
     if (!activeId) return
-    const current = list.find((r) => r.id === activeId)?.name ?? 'отчёт'
-    if (!window.confirm(`Удалить отчёт «${current}» вместе с данными?`)) return
+    const current = list.find((r) => r.id === activeId)?.name ?? t('rswitch.delete.fallbackName')
+    if (!window.confirm(t('rswitch.delete.confirm', { name: current }))) return
     setBusy(true)
     try {
       await deleteReport(activeId)
       const items = await reload()
       await activate(items[0]?.id ?? null)
     } catch (e) {
-      setError('Не удалось удалить')
+      setError(t('rswitch.error.delete'))
       console.warn(e)
     } finally {
       setBusy(false)
@@ -121,7 +127,7 @@ export default function ReportSwitcher({
 
   return (
     <div className="rswitch">
-      <span className="rswitch__label">Отчёт:</span>
+      <span className="rswitch__label">{t('rswitch.label')}</span>
       {list.length > 0 && (
         <select
           className="rswitch__select"
@@ -136,11 +142,11 @@ export default function ReportSwitcher({
       )}
       {activeId && (
         <>
-          <button className="btn btn--small" title="Переименовать" disabled={busy} onClick={onRename}>✎</button>
-          <button className="btn btn--small" title="Удалить" disabled={busy} onClick={onDelete}>🗑</button>
+          <button className="btn btn--small" title={t('rswitch.rename')} disabled={busy} onClick={onRename}>✎</button>
+          <button className="btn btn--small" title={t('rswitch.delete')} disabled={busy} onClick={onDelete}>🗑</button>
         </>
       )}
-      <button className="btn btn--small" disabled={busy} onClick={onCreate}>+ Новый</button>
+      <button className="btn btn--small" disabled={busy} onClick={onCreate}>{t('rswitch.new')}</button>
       {error && <span className="rswitch__error" title={error}>⚠</span>}
     </div>
   )

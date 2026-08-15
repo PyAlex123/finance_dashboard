@@ -5,6 +5,13 @@ import type { RootState } from './index'
 import { derivePeriods } from '../engine/periods'
 
 export const selectData = (s: RootState) => s.data
+
+/**
+ * Текущий язык. Входит в мемоизацию тех селекторов, которые сами порождают текст
+ * (авто-статьи ДДС, контрольные суммы, подписи периодов) — иначе reselect отдаст
+ * старый язык, пока не изменятся данные. См. комментарий в store/uiSlice.ts.
+ */
+export const selectLocale = (s: RootState) => s.ui.locale
 export const selectAccounts = (s: RootState) => s.data.accounts
 export const selectCategories = (s: RootState) => s.data.categories
 export const selectOperations = (s: RootState) => s.data.operations

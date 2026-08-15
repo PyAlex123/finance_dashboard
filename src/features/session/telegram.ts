@@ -4,6 +4,12 @@
 
 interface TelegramWebApp {
   initData: string
+  /**
+   * Неподписанная копия initData. Для авторизации не годится (её нельзя проверить),
+   * но language_code отсюда — лучшая догадка о языке: пользователь уже сидит в
+   * клиенте Telegram на этом языке. Читается в src/i18n/detect.ts.
+   */
+  initDataUnsafe?: { user?: { language_code?: string } }
   ready: () => void
   expand?: () => void
   setHeaderColor?: (color: string) => void

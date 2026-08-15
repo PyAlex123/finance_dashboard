@@ -10,12 +10,16 @@ import { autoCode } from '../../domain/codes'
 import { directionForType, todayIso } from './rowEdit'
 import { useToast } from '../ui/Toast'
 import type { OperationType } from '../../domain/types'
+import { t, type Key } from '../../i18n'
+import { useT } from '../../i18n/react'
+import { moneySuffix } from '../../domain/money'
 
 // Сегментный контрол типа — семантические цвета из эталона.
-const TYPE_SEGMENTS: { value: OperationType; label: string }[] = [
-  { value: 'income', label: '● Приход' },
-  { value: 'expense', label: '● Расход' },
-  { value: 'transfer', label: '⇄ Переброска' },
+// Ключи, а не подписи: массив вычисляется при импорте — см. src/App.tsx.
+const TYPE_SEGMENTS: { value: OperationType; labelKey: Key }[] = [
+  { value: 'income', labelKey: 'opform.type.income' },
+  { value: 'expense', labelKey: 'opform.type.expense' },
+  { value: 'transfer', labelKey: 'opform.type.transfer' },
 ]
 
 const SEG_CLASS: Record<OperationType, string> = {
@@ -31,6 +35,7 @@ export default function OperationForm({
   /** Если задан — форма редактирует существующую операцию. */
   operationId?: string
 }) {
+  useT() // подписка на смену языка для всей формы
   const dispatch = useAppDispatch()
   const toast = useToast()
   const accounts = useAppSelector(selectActiveAccounts)
@@ -89,17 +94,17 @@ export default function OperationForm({
     try {
       minor = parseMoney(amount)
     } catch {
-      return 'Некорректная сумма'
+      return t('opform.error.amount')
     }
-    if (minor <= 0n) return 'Сумма должна быть больше нуля'
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Некорректная дата'
-    if (!accountId) return 'Выберите счёт'
+    if (minor <= 0n) return t('opform.error.amountPositive')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return t('opform.error.date')
+    if (!accountId) return t('opform.error.account')
 
     if (type === 'transfer') {
-      if (!toAccountId || toAccountId === accountId) return 'Счета переброски должны различаться'
+      if (!toAccountId || toAccountId === accountId) return t('opform.error.sameAccounts')
       const toCurrency = accounts.find((a) => a.id === toAccountId)?.currency ?? 'UZS'
       return {
-        operation: { date, type, description: description || 'Переброска', categoryId: effectiveCategoryId, note },
+        operation: { date, type, description: description || t('opform.defaultTransferDesc'), categoryId: effectiveCategoryId, note },
         lines: [
           { accountId, amount: -minor, currency },
           { accountId: toAccountId, amount: minor, currency: toCurrency },
@@ -122,10 +127,10 @@ export default function OperationForm({
         operation: { ...input.operation, id: editing.id },
         lines: input.lines.map((l, i) => ({ ...l, id: `${editing.id}-l${i + 1}`, operationId: editing.id })),
       }))
-      toast('Операция сохранена')
+      toast(t('opform.saved'))
     } else {
       dispatch(addOperation(input))
-      toast('Операция добавлена в журнал')
+      toast(t('opform.added'))
     }
     onClose()
   }
@@ -136,7 +141,7 @@ export default function OperationForm({
     const input = buildInput()
     if (typeof input === 'string') return setError(input)
     dispatch(addOperation(input))
-    toast('Добавлено · форма готова к следующей')
+    toast(t('opform.addedNext'))
     setAmount('')
     setDescription('')
     setNote('')
@@ -156,77 +161,77 @@ export default function OperationForm({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal__head">
-          <h3 className="modal__title">{editing ? 'Изменить операцию' : 'Новая операция'}</h3>
-          <button className="modal__close" onClick={onClose} title="Закрыть">✕</button>
+          <h3 className="modal__title">{editing ? t('opform.title.edit') : t('opform.title.new')}</h3>
+          <button className="modal__close" onClick={onClose} title={t('common.close')}>✕</button>
         </div>
 
         {accounts.length === 0 && (
           <div className="modal__error">
-            Сначала добавьте хотя бы один счёт во вкладке «Справочники».
+            {t('opform.noAccounts')}
           </div>
         )}
 
         <div className="segtype">
-          {TYPE_SEGMENTS.map((t) => (
+          {TYPE_SEGMENTS.map((seg) => (
             <button
-              key={t.value}
-              className={`segtype__btn ${type === t.value ? `segtype__btn--active ${SEG_CLASS[t.value]}` : ''}`}
-              onClick={() => setType(t.value)}
+              key={seg.value}
+              className={`segtype__btn ${type === seg.value ? `segtype__btn--active ${SEG_CLASS[seg.value]}` : ''}`}
+              onClick={() => setType(seg.value)}
             >
-              {t.label}
+              {t(seg.labelKey)}
             </button>
           ))}
         </div>
 
         <div className="form-grid">
           <label className="field field--wide">
-            <span>Описание</span>
-            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Оплата курса…" />
+            <span>{t('opform.description')}</span>
+            <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('opform.description.placeholder')} />
           </label>
           <label className="field">
-            <span>Дата</span>
+            <span>{t('common.date')}</span>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </label>
 
           <label className="field">
-            <span>Сумма</span>
+            <span>{t('opform.amount')}</span>
             <div className="mamount">
               <input value={amount} onChange={(e) => setAmount(groupThousands(e.target.value))} inputMode="decimal" placeholder="650 000" />
-              <span className="mamount__cur">{currency === 'UZS' ? 'сум' : currency}</span>
+              <span className="mamount__cur">{currency === 'UZS' ? moneySuffix() : currency}</span>
             </div>
           </label>
 
           {type !== 'transfer' && (
             <div className="field field--wide">
-              <span>Категория</span>
+              <span>{t('opform.category')}</span>
               {newCategory === null ? (
                 <div className="field__row">
                   <select
-                    aria-label="Категория"
+                    aria-label={t('opform.category')}
                     value={effectiveCategoryId ?? ''}
                     onChange={(e) => setCategoryId(e.target.value)}
                   >
-                    {catsForType.length === 0 && <option value="">— нет категорий —</option>}
+                    {catsForType.length === 0 && <option value="">{t('opform.category.none')}</option>}
                     {catsForType.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                   <button type="button" className="btn btn--cat" onClick={() => setNewCategory('')}>
-                    ＋ Новая
+                    {t('opform.category.new')}
                   </button>
                 </div>
               ) : (
                 <div className="field__row">
                   <input
                     autoFocus
-                    placeholder="Название категории"
+                    placeholder={t('journal.category.placeholder')}
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveNewCategory() }}
                   />
                   <button type="button" className="btn btn--small btn--primary" onClick={saveNewCategory}>
-                    Сохранить
+                    {t('common.save')}
                   </button>
                   <button type="button" className="btn btn--small" onClick={() => setNewCategory(null)}>
-                    Отмена
+                    {t('common.cancel')}
                   </button>
                 </div>
               )}
@@ -234,7 +239,7 @@ export default function OperationForm({
           )}
 
           <label className="field field--wide">
-            <span>{type === 'transfer' ? 'Со счёта' : 'Счёт'}</span>
+            <span>{type === 'transfer' ? t('opform.account.from') : t('opform.account')}</span>
             <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -246,7 +251,7 @@ export default function OperationForm({
 
           {type === 'transfer' && (
             <label className="field field--wide">
-              <span>На счёт</span>
+              <span>{t('opform.account.to')}</span>
               <select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)}>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -258,8 +263,8 @@ export default function OperationForm({
           )}
 
           <label className="field field--wide">
-            <span>Примечание</span>
-            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Необязательно" />
+            <span>{t('opform.note')}</span>
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('opform.note.placeholder')} />
           </label>
         </div>
 
@@ -268,15 +273,15 @@ export default function OperationForm({
         <div className="modal__foot">
           <div className="modal__actions">
             <button className="btn btn--primary" onClick={submit} disabled={accounts.length === 0}>
-              {editing ? 'Сохранить' : 'Добавить'}
+              {editing ? t('common.save') : t('opform.submit.add')}
             </button>
             {!editing && (
               <button className="btn" onClick={submitMore} disabled={accounts.length === 0}>
-                Добавить и создать ещё
+                {t('opform.addAndNext')}
               </button>
             )}
           </div>
-          <span className="modal__hint">Esc — закрыть · Ctrl+Enter — сохранить</span>
+          <span className="modal__hint">{t('opform.hint')}</span>
         </div>
       </div>
     </div>

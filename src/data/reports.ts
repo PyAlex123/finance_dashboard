@@ -4,6 +4,7 @@
 
 import { API_URL, getSession } from './backend'
 import type { ReportForm } from '../domain/types'
+import { t } from '../i18n'
 
 export interface ReportMeta {
   id: string
@@ -29,20 +30,20 @@ export async function listReports(form?: ReportForm): Promise<ReportMeta[]> {
   const q = new URLSearchParams({ owner })
   if (form) q.set('form', form)
   const res = await fetch(`${base()}/api/reports?${q.toString()}`, { headers: authHeaders() })
-  if (!res.ok) throw new Error(`Сервер вернул ${res.status} при загрузке списка отчётов`)
+  if (!res.ok) throw new Error(t('net.error.reportList', { status: res.status }))
   return (await res.json()) as ReportMeta[]
 }
 
 /** Создать новый отчёт (пустой). Возвращает мету с сгенерированным id. */
 export async function createReport(form: ReportForm, name: string): Promise<ReportMeta> {
   const owner = getSession()?.owner
-  if (!owner) throw new Error('Нет активной сессии')
+  if (!owner) throw new Error(t('net.error.noSession'))
   const res = await fetch(`${base()}/api/reports`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ owner, form, name }),
   })
-  if (!res.ok) throw new Error(`Сервер вернул ${res.status} при создании отчёта`)
+  if (!res.ok) throw new Error(t('net.error.reportCreate', { status: res.status }))
   return (await res.json()) as ReportMeta
 }
 
@@ -53,7 +54,7 @@ export async function renameReport(id: string, name: string): Promise<ReportMeta
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ name }),
   })
-  if (!res.ok) throw new Error(`Сервер вернул ${res.status} при переименовании`)
+  if (!res.ok) throw new Error(t('net.error.reportRename', { status: res.status }))
   return (await res.json()) as ReportMeta
 }
 
@@ -63,5 +64,5 @@ export async function deleteReport(id: string): Promise<void> {
     method: 'DELETE',
     headers: authHeaders(),
   })
-  if (!res.ok) throw new Error(`Сервер вернул ${res.status} при удалении`)
+  if (!res.ok) throw new Error(t('net.error.reportDelete', { status: res.status }))
 }

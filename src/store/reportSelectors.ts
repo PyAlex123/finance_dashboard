@@ -2,7 +2,7 @@
 // Ничего вычисляемого не хранится в сторе — только здесь, мемоизировано.
 
 import { createSelector } from '@reduxjs/toolkit'
-import { selectData, selectActiveAccounts, selectPeriods } from './selectors'
+import { selectData, selectActiveAccounts, selectPeriods, selectLocale } from './selectors'
 import { buildReport } from '../engine/report'
 import { buildAutoCfItems } from '../engine/autoCf'
 import { runChecks, allChecksOk } from '../engine/checks'
@@ -16,9 +16,14 @@ import type { AggRule, Currency, Item } from '../domain/types'
 export const selectCfAuto = createSelector([selectData], (data) => data.cfAuto !== false)
 
 /** Действующие статьи ДДС: авто (из данных) или ручные (из шаблона). */
+// selectLocale во входах — не украшение: авто-статьи ДДС порождает сам селектор,
+// и без языка в ключе мемоизации reselect отдавал бы их на прежнем языке до
+// первой правки данных. Ручные статьи (ветка else) — данные пользователя и от
+// языка не зависят, но пересчёт ветки дешёвый.
 export const selectEffectiveCfItems = createSelector(
-  [selectData, selectCfAuto],
-  (data, auto): Item[] => (auto ? buildAutoCfItems(data) : data.items.filter((it) => it.form === 'cf')),
+  [selectData, selectCfAuto, selectLocale],
+  (data, auto, locale): Item[] =>
+    auto ? buildAutoCfItems(data, locale) : data.items.filter((it) => it.form === 'cf'),
 )
 
 export const selectReport = createSelector(
@@ -36,12 +41,16 @@ export const selectCfAggRuleByCode = createSelector([selectEffectiveCfItems], (i
   ),
 )
 
-export const selectChecks = createSelector([selectData], (data) => runChecks(data, 'cf'))
+export const selectChecks = createSelector([selectData, selectLocale], (data, locale) =>
+  runChecks(data, 'cf', locale),
+)
 export const selectChecksOk = createSelector([selectChecks], (checks) => allChecksOk(checks))
 
 // P&L (форма pl)
 export const selectPlReport = createSelector([selectData], (data) => buildReport(data, { form: 'pl' }))
-export const selectPlChecks = createSelector([selectData], (data) => runChecks(data, 'pl'))
+export const selectPlChecks = createSelector([selectData, selectLocale], (data, locale) =>
+  runChecks(data, 'pl', locale),
+)
 
 // Баланс (форма bs). Точка во времени; главная проверка — балансовое уравнение
 // (строка bs_check == 0 по каждой дате). Отдельного набора runChecks не заводим —

@@ -5,18 +5,21 @@ import { setCellValue, deleteCellValue, addPeriod, removePeriod, seedItems } fro
 import { type ReportRow } from '../../engine/report'
 import { formatPeriod } from '../../engine/periods'
 import { formatMoney, parseMoney, toMajorNumber, type Money } from '../../domain/money'
-import { BS_ITEMS, BS_TOTAL_CODES } from '../../data/bsTemplate'
+import { buildBsItems, BS_TOTAL_CODES } from '../../data/bsTemplate'
 import { buildBsExample } from '../../data/bsExample'
+import { t } from '../../i18n'
+import { useT } from '../../i18n/react'
 
 function fmt(v: Money | null): { text: string; neg: boolean } {
   if (v === null) return { text: '', neg: false }
-  return { text: v === 0n ? '—' : formatMoney(v), neg: v < 0n }
+  return { text: v === 0n ? t('common.dash') : formatMoney(v), neg: v < 0n }
 }
 
 // Отчёт «Баланс»: снимок на дату (колонки — даты срезов). Ручной ввод статей;
 // итоги разделов и балансовое уравнение считаются автоматически. Контроль
 // «Активы = Обязательства + Капитал» виден строкой bs_check и полосой-статусом.
 export default function BsReport() {
+  useT() // подписка на смену языка для всего экрана
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
   const report = useAppSelector(selectBsReport)
@@ -29,33 +32,33 @@ export default function BsReport() {
   for (const cv of data.cellValues) cell.set(`${cv.itemCode}|${cv.period}`, cv.amount)
 
   function addDate() {
-    const p = prompt('Добавить дату-срез (ГГГГ-ММ), например 2025-06:')
+    const p = prompt(t('bsreport.addDate.prompt'))
     if (p && /^\d{4}-(0[1-9]|1[0-2])$/.test(p.trim())) dispatch(addPeriod(p.trim()))
-    else if (p) alert('Формат даты: ГГГГ-ММ (год обязателен)')
+    else if (p) alert(t('bsreport.addDate.invalid'))
   }
 
   return (
     <div className="report-layout">
       <div className="report">
-        {report.error && <div className="report__error">Ошибка расчёта: {report.error}</div>}
+        {report.error && <div className="report__error">{t('report.error', { message: report.error })}</div>}
         {balanced !== null && (
           <div className={`bs__status ${balanced ? 'bs__status--ok' : 'bs__status--bad'}`}>
             {balanced
-              ? '✅ Баланс сходится: Активы = Обязательства + Капитал'
-              : '⚠ Баланс не сходится — проверьте статьи (Активы ≠ Обязательства + Капитал)'}
+              ? t('bsreport.balanced')
+              : t('bsreport.unbalanced')}
           </div>
         )}
         <table className="report__table pl__table">
           <thead>
             <tr>
-              <th className="report__name-col">Статья</th>
+              <th className="report__name-col">{t('report.col.item')}</th>
               {report.periods.map((p) => (
                 <th key={p} className="report__num-col">
                   <span>{formatPeriod(p)}</span>
-                  <button className="pl__delcol" title="Удалить дату" onClick={() => dispatch(removePeriod(p))}>✕</button>
+                  <button className="pl__delcol" title={t('bsreport.removeDate')} onClick={() => dispatch(removePeriod(p))}>✕</button>
                 </th>
               ))}
-              <th className="pl__addcol"><button className="btn btn--small" onClick={addDate}>+ дата</button></th>
+              <th className="pl__addcol"><button className="btn btn--small" onClick={addDate}>{t('bsreport.addDate')}</button></th>
             </tr>
           </thead>
           <tbody>
@@ -139,18 +142,16 @@ function BsEmpty() {
   return (
     <div className="report-layout">
       <div className="report empty-state">
-        <div className="empty-state__title">Баланс пуст</div>
+        <div className="empty-state__title">{t('bsreport.empty.title')}</div>
         <p className="empty-state__text">
-          Баланс — «снимок» бизнеса на дату: активы (что есть) и пассивы (за чей счёт).
-          Начните со стандартной структуры или загрузите учебный пример. Итоги и проверка
-          «Активы = Обязательства + Капитал» считаются автоматически.
+          {t('bsreport.empty.body')}
         </p>
         <div className="empty-state__actions">
           <button
             className="btn btn--primary"
-            onClick={() => dispatch(seedItems({ items: structuredClone(BS_ITEMS), periods: [] }))}
+            onClick={() => dispatch(seedItems({ items: buildBsItems(), periods: [] }))}
           >
-            Стандартная структура баланса
+            {t('bsreport.seed')}
           </button>
           <button
             className="btn"
@@ -162,7 +163,7 @@ function BsEmpty() {
               }
             }}
           >
-            Загрузить учебный пример
+            {t('plreport.loadExample')}
           </button>
         </div>
       </div>

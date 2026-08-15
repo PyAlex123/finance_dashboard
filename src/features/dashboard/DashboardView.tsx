@@ -5,6 +5,9 @@ import { useAppSelector } from '../../store/hooks'
 import { selectDashboard, type DashboardData } from './dashboardSelectors'
 import { formatMoney, type Money } from '../../domain/money'
 import { useViewMode } from '../shell/ViewMode'
+import { t } from '../../i18n'
+import { useT } from '../../i18n/react'
+import { formatNumber } from '../../i18n/format'
 
 // Палитра дашборда (провалидирована validate_palette): приход/накопление —
 // accent, расход — терракота, счёт — forest. Донат: accent→slate→expense→forest→mint.
@@ -14,7 +17,10 @@ const C = {
 }
 const DONUT = [C.accent, C.slate, C.expense, C.forest, C.mint]
 
-const fmtShort = (n: number) => n.toLocaleString('ru-RU').replace(/\s/g, ' ')
+// Своё форматирование, а не toLocaleString: группировка Intl различается между
+// сборками ICU в Node (тесты стали бы плавающими), а прежняя замена пробела на
+// U+00A0 молча сломалась бы на en-US, где разделителем идут запятые.
+const fmtShort = (n: number) => formatNumber(n)
 
 /** Точки спарклайна в viewBox 0 0 88 20 (y инвертирован). */
 function spark(vals: number[]): string {
@@ -33,32 +39,33 @@ function spark(vals: number[]): string {
 }
 
 export default function DashboardView() {
+  useT() // подписка на смену языка для всего экрана
   const d = useAppSelector(selectDashboard)
   const mobile = useViewMode() === 'mobile'
 
   if (!d.hasData) {
     return (
       <div className="dash">
-        <div className="dash__eyebrow">Дашборд</div>
-        <h2 className="dash__title">Ключевые показатели</h2>
+        <div className="dash__eyebrow">{t('dashboard.eyebrow')}</div>
+        <h2 className="dash__title">{t('dashboard.title')}</h2>
         <p className="placeholder">
-          Пока нет операций. Добавьте записи в «Журнале» или нажмите «Данные → Загрузить пример».
+          {t('dashboard.empty')}
         </p>
       </div>
     )
   }
 
   const kpis: { label: string; value: Money; sub: string; color: string; series: number[] }[] = [
-    { label: 'Всего приходов', value: d.kpis.totalIn, sub: 'за период', color: C.accent, series: d.inByPeriod },
-    { label: 'Всего расходов', value: d.kpis.totalOut, sub: 'за период', color: C.expense, series: d.outByPeriod },
-    { label: 'Результат', value: d.kpis.result, sub: 'приход − расход', color: C.forest, series: d.resultByPeriod },
-    { label: 'Остаток на конец', value: d.kpis.endingBalance, sub: 'по всем счетам', color: C.slate, series: d.balanceByPeriod },
+    { label: t('dashboard.kpi.totalIn'), value: d.kpis.totalIn, sub: t('dashboard.kpi.sub.period'), color: C.accent, series: d.inByPeriod },
+    { label: t('dashboard.kpi.totalOut'), value: d.kpis.totalOut, sub: t('dashboard.kpi.sub.period'), color: C.expense, series: d.outByPeriod },
+    { label: t('dashboard.kpi.result'), value: d.kpis.result, sub: t('dashboard.kpi.sub.formula'), color: C.forest, series: d.resultByPeriod },
+    { label: t('dashboard.kpi.ending'), value: d.kpis.endingBalance, sub: t('dashboard.kpi.sub.allAccounts'), color: C.slate, series: d.balanceByPeriod },
   ]
 
   return (
     <div className={`dash ${mobile ? 'dash--mobile' : ''}`}>
-      <div className="dash__eyebrow">Дашборд</div>
-      <h2 className="dash__title">Ключевые показатели</h2>
+      <div className="dash__eyebrow">{t('dashboard.eyebrow')}</div>
+      <h2 className="dash__title">{t('dashboard.title')}</h2>
 
       <div className="dash__kpis">
         {kpis.map((k) => (
@@ -77,23 +84,23 @@ export default function DashboardView() {
       </div>
 
       <div className="dash__charts">
-        <ChartCard title="Приход vs Расход по месяцам">
+        <ChartCard title={t('dashboard.chart.inOut')}>
           <InOutBars data={d} />
           <div className="chart__legend">
-            <span className="chart__leg"><i style={{ background: C.accent }} />Приход</span>
-            <span className="chart__leg"><i style={{ background: C.expense }} />Расход</span>
+            <span className="chart__leg"><i style={{ background: C.accent }} />{t('dashboard.legend.in')}</span>
+            <span className="chart__leg"><i style={{ background: C.expense }} />{t('dashboard.legend.out')}</span>
           </div>
         </ChartCard>
 
-        <ChartCard title="Расходы по категориям">
+        <ChartCard title={t('dashboard.chart.byCategory')}>
           <Donut data={d} />
         </ChartCard>
 
-        <ChartCard title={d.mainAccount ? `Остаток «${d.mainAccount.name}» по датам` : 'Остаток по датам'}>
+        <ChartCard title={d.mainAccount ? t('dashboard.chart.balanceNamed', { name: d.mainAccount.name }) : t('dashboard.chart.balance')}>
           <BalanceBars data={d} />
         </ChartCard>
 
-        <ChartCard title="Динамика результата (приход − расход)">
+        <ChartCard title={t('dashboard.chart.result')}>
           <ResultLine data={d} />
         </ChartCard>
       </div>
@@ -131,11 +138,11 @@ function InOutBars({ data }: { data: DashboardData }) {
           <g key={i}>
             <rect className="dash-bar" x={cx - bw - 2} y={base - hi} width={bw} height={hi} rx="3" fill={C.accent}
               style={{ animationDelay: `${i * 0.06}s` }}>
-              <title>Приход · {data.monthLabels[i]}: {fmtShort(data.inByPeriod[i])}</title>
+              <title>{t('dashboard.tooltip.in', { period: data.monthLabels[i], value: fmtShort(data.inByPeriod[i]) })}</title>
             </rect>
             <rect className="dash-bar" x={cx + 2} y={base - ho} width={bw} height={ho} rx="3" fill={C.expense}
               style={{ animationDelay: `${i * 0.06 + 0.03}s` }}>
-              <title>Расход · {data.monthLabels[i]}: {fmtShort(data.outByPeriod[i])}</title>
+              <title>{t('dashboard.tooltip.out', { period: data.monthLabels[i], value: fmtShort(data.outByPeriod[i]) })}</title>
             </rect>
           </g>
         )
@@ -180,7 +187,7 @@ function Donut({ data }: { data: DashboardData }) {
             <b>{Math.round(e.share * 100)}%</b>
           </span>
         ))}
-        {data.expenses.length === 0 && <span className="donut__empty">Расходов нет</span>}
+        {data.expenses.length === 0 && <span className="donut__empty">{t('dashboard.noExpenses')}</span>}
       </div>
     </div>
   )

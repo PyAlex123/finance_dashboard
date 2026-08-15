@@ -12,6 +12,7 @@ import type {
 import type { Money } from '../domain/money'
 import { fromMajor, parseMoney } from '../domain/money'
 import { parsePeriodLabel } from '../engine/periods'
+import { t, type Key, type Locale } from '../i18n'
 
 export type Cell = string | number | null
 export type Grid = Cell[][]
@@ -118,16 +119,21 @@ export interface ParsedPl {
   cellValues: CellValue[]
 }
 
+// Классификация строк P&L по названию. ЭТО ЛОГИКА РАЗБОРА ЧУЖИХ ФАЙЛОВ, а не
+// подписи интерфейса: паттерны сравниваются с содержимым загружаемого Excel, и
+// от языка интерфейса они не зависят — разбирать нужно все языки сразу.
+// Альтернативы только ДОПИСЫВАЮТСЯ: русский паттерн не удаляется никогда,
+// иначе перестанут открываться файлы, которые пользователи уже сдали.
 const RE = {
-  total: /итог|всего/i,
-  gross: /валов/i,
-  opProfit: /операцион\w*\s+прибыл/i,
-  pretax: /до\s+налог/i,
-  tax: /налог/i,
-  net: /чист\w*\s+прибыл/i,
-  revenueTotal: /выручк|доход/i,
-  cogsTotal: /себестоим/i,
-  opexTotal: /расход/i,
+  total: /итог|всего|total|jami/i,
+  gross: /валов|gross|yalpi/i,
+  opProfit: /операцион\w*\s+прибыл|operating\s+(profit|income)|operatsion\w*\s+foyda/i,
+  pretax: /до\s+налог|before\s+tax|pre-?tax|soliqqacha/i,
+  tax: /налог|tax|soliq/i,
+  net: /чист\w*\s+прибыл|net\s+(profit|income)|sof\s+foyda/i,
+  revenueTotal: /выручк|доход|revenue|turnover|tushum|daromad/i,
+  cogsTotal: /себестоим|cost\s+of\s+(sales|goods)|cogs|tannarx/i,
+  opexTotal: /расход|expense|opex|xarajat/i,
 }
 
 /** Разбор матрицы P&L с умным распознаванием итоговых/расчётных строк. */
@@ -238,11 +244,15 @@ export interface DdsMapping {
   accountCols: { col: number; name: string }[]
 }
 
-const IGNORE_COL = /курс|итог|total|№|\bno\b|\$/i
+// Заголовок столбца с датой: используется и для поиска строки-заголовка,
+// и для самого столбца — держим в одном месте, чтобы они не разъехались.
+const RE_HEADER_DATE = /дата|date|sana/i
+
+const IGNORE_COL = /курс|итог|total|jami|kurs|№|\bno\b|\$/i
 
 export function detectDdsMapping(grid: Grid): DdsMapping {
   // строка-заголовок — первая, где встречается «дата», иначе первая непустая
-  let headerRow = grid.findIndex((r) => r.some((c) => /дата|date/i.test(cellText(c))))
+  let headerRow = grid.findIndex((r) => r.some((c) => RE_HEADER_DATE.test(cellText(c))))
   if (headerRow < 0) headerRow = grid.findIndex((r) => r.some((c) => cellText(c) !== ''))
   if (headerRow < 0) headerRow = 0
   const header = grid[headerRow] ?? []
@@ -250,11 +260,11 @@ export function detectDdsMapping(grid: Grid): DdsMapping {
     const idx = header.findIndex((c) => re.test(cellText(c)))
     return idx < 0 ? null : idx
   }
-  const dateCol = find(/дата|date/i)
-  const typeCol = find(/тип|type/i)
-  const descCol = find(/описан|назначен|коммент|наименован/i)
-  const categoryCol = find(/категор|статья/i)
-  const noteCol = find(/примечан|заметк|note/i)
+  const dateCol = find(RE_HEADER_DATE)
+  const typeCol = find(/тип|type|turi?\b/i)
+  const descCol = find(/описан|назначен|коммент|наименован|descript|purpose|comment|name\b|izoh|tavsif|nomi/i)
+  const categoryCol = find(/категор|статья|category|item\b|kategoriya|modda/i)
+  const noteCol = find(/примечан|заметк|note|remark|eslatma/i)
   const used = new Set([dateCol, typeCol, descCol, categoryCol, noteCol].filter((x) => x !== null))
 
   const dataRows = grid.slice(headerRow + 1, headerRow + 40)
@@ -277,8 +287,13 @@ export interface ParsedDds {
   openingBalances: OpeningBalance[]
 }
 
-const RE_TYPE = { income: /приход|доход|income/i, expense: /расход|expense/i, transfer: /переброск|перевод|transfer/i }
-const RE_OPENING = /остаток|нач\w*\s*остат|opening/i
+// Сравниваются со ЗНАЧЕНИЯМИ ячеек загружаемого файла — см. пояснение у RE выше.
+const RE_TYPE = {
+  income: /приход|доход|income|inflow|kirim/i,
+  expense: /расход|expense|outflow|chiqim/i,
+  transfer: /переброск|перевод|transfer|oʻtkazma|o'tkazma|otkazma/i,
+}
+const RE_OPENING = /остаток|нач\w*\s*остат|opening|balance\s+b\/?f|qoldiq/i
 
 function inferType(lines: { amount: Money }[]): OperationType {
   if (lines.length >= 2) {
@@ -357,36 +372,43 @@ export function parseDdsJournal(grid: Grid, mapping: DdsMapping, opts: { default
 }
 
 /** Стандартное дерево статей ДДС под импортированные счета/категории (чтобы отчёт считался). */
-export function generateDdsTemplate(accounts: Account[], categories: Category[]): Item[] {
+export function generateDdsTemplate(
+  accounts: Account[],
+  categories: Category[],
+  locale?: Locale,
+): Item[] {
+  // Те же ключи, что у шаблона по умолчанию (data/ddsTemplate.ts): дерево одно и
+  // то же, просто здесь оно рождается из чужого файла, а не из шаблона.
+  const tr = (key: Key) => t(key, undefined, locale)
   const items: Item[] = []
   let order = 0
   const mk = (o: Omit<Item, 'id' | 'templateId' | 'form' | 'order'>) => {
     items.push({ id: nanoid(), templateId: 'tpl-dds', form: 'cf', order: order++, ...o })
   }
 
-  mk({ code: 's_totals', parentCode: null, kind: 'header', name: 'Итоги за период' })
-  mk({ code: 'v_total_in', parentCode: 's_totals', kind: 'agg', name: 'Общий приход', aggRule: { measure: 'in' } })
-  mk({ code: 'v_total_out', parentCode: 's_totals', kind: 'agg', name: 'Общий расход', aggRule: { measure: 'out' } })
-  mk({ code: 'v_result', parentCode: 's_totals', kind: 'calc', name: 'Результат (приход − расход)', formulaDefault: 'v_total_in - v_total_out' })
+  mk({ code: 's_totals', parentCode: null, kind: 'header', name: tr('seed.dds.s_totals') })
+  mk({ code: 'v_total_in', parentCode: 's_totals', kind: 'agg', name: tr('seed.dds.v_total_in'), aggRule: { measure: 'in' } })
+  mk({ code: 'v_total_out', parentCode: 's_totals', kind: 'agg', name: tr('seed.dds.v_total_out'), aggRule: { measure: 'out' } })
+  mk({ code: 'v_result', parentCode: 's_totals', kind: 'calc', name: tr('seed.dds.v_result'), formulaDefault: 'v_total_in - v_total_out' })
 
   const inc = categories.filter((c) => c.direction === 'in')
   if (inc.length) {
-    mk({ code: 's_income', parentCode: null, kind: 'header', name: 'Доходы по категориям' })
+    mk({ code: 's_income', parentCode: null, kind: 'header', name: tr('seed.dds.s_income') })
     for (const c of inc) mk({ code: `inc_${c.code}`, parentCode: 'inc_total', kind: 'agg', name: c.name, aggRule: { measure: 'in', categoryCode: c.code } })
-    mk({ code: 'inc_total', parentCode: 's_income', kind: 'calc', name: 'ИТОГО доходы', formulaDefault: 'SUM(children)' })
+    mk({ code: 'inc_total', parentCode: 's_income', kind: 'calc', name: tr('seed.dds.inc_total'), formulaDefault: 'SUM(children)' })
   }
 
   const exp = categories.filter((c) => c.direction === 'out')
   if (exp.length) {
-    mk({ code: 's_expense', parentCode: null, kind: 'header', name: 'Расходы по категориям' })
+    mk({ code: 's_expense', parentCode: null, kind: 'header', name: tr('seed.dds.s_expense') })
     for (const c of exp) mk({ code: `exp_${c.code}`, parentCode: 'exp_total', kind: 'agg', name: c.name, aggRule: { measure: 'out', categoryCode: c.code } })
-    mk({ code: 'exp_total', parentCode: 's_expense', kind: 'calc', name: 'ИТОГО расходы', formulaDefault: 'SUM(children)' })
+    mk({ code: 'exp_total', parentCode: 's_expense', kind: 'calc', name: tr('seed.dds.exp_total'), formulaDefault: 'SUM(children)' })
   }
 
   if (accounts.length) {
-    mk({ code: 's_balances', parentCode: null, kind: 'header', name: 'Остатки по счетам' })
+    mk({ code: 's_balances', parentCode: null, kind: 'header', name: tr('seed.dds.s_balances') })
     for (const a of accounts) mk({ code: `bal_${a.code}`, parentCode: 'bal_total', kind: 'agg', name: a.name, aggRule: { measure: 'balance', accountCode: a.code } })
-    mk({ code: 'bal_total', parentCode: 's_balances', kind: 'calc', name: 'ИТОГО по всем счетам', formulaDefault: 'SUM(children)' })
+    mk({ code: 'bal_total', parentCode: 's_balances', kind: 'calc', name: tr('seed.dds.bal_total'), formulaDefault: 'SUM(children)' })
   }
 
   return items

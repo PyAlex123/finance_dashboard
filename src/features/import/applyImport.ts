@@ -4,11 +4,14 @@
 import type { DataSnapshot } from '../../domain/types'
 import { normalizeSnapshot } from '../../data/json'
 import { generateDdsTemplate, type ParsedDds, type ParsedPl } from '../../data/importExcel'
+import { t } from '../../i18n'
 
 export type ImportMode = 'replace' | 'merge'
 
-const PL_TEMPLATE = { id: 'tpl-pl', name: 'P&L', form: 'pl' as const, version: 1 }
-const DDS_TEMPLATE = { id: 'tpl-dds', name: 'ДДС', form: 'cf' as const, version: 1 }
+// Функции, а не константы: имя шаблона фиксируется в момент импорта, на языке,
+// активном тогда же (см. пояснение в data/ddsTemplate.ts).
+const plTemplateRow = () => ({ id: 'tpl-pl', name: t('seed.template.pl'), form: 'pl' as const, version: 1 })
+const ddsTemplateRow = () => ({ id: 'tpl-dds', name: t('seed.template.cf'), form: 'cf' as const, version: 1 })
 
 export function applyPlImport(current: DataSnapshot, parsed: ParsedPl, mode: ImportMode): DataSnapshot {
   const plCodes = new Set(current.items.filter((i) => i.form === 'pl').map((i) => i.code))
@@ -23,7 +26,7 @@ export function applyPlImport(current: DataSnapshot, parsed: ParsedPl, mode: Imp
 
   const templates = current.templates.some((t) => t.form === 'pl')
     ? current.templates
-    : [...current.templates, PL_TEMPLATE]
+    : [...current.templates, plTemplateRow()]
 
   return normalizeSnapshot({
     ...base,
@@ -46,7 +49,7 @@ export function applyDdsImport(current: DataSnapshot, parsed: ParsedDds, mode: I
 
   const templates = current.templates.some((t) => t.form === 'cf')
     ? current.templates
-    : [...current.templates, DDS_TEMPLATE]
+    : [...current.templates, ddsTemplateRow()]
 
   return normalizeSnapshot({
     ...base,

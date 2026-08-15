@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { extractDeps, buildCalcPlan, CycleError } from './graph'
 import { parseFormula } from './parser'
 import type { Item } from '../../domain/types'
-import { DDS_ITEMS } from '../../data/ddsTemplate'
+import { buildDdsItems } from '../../data/ddsTemplate'
 
 function calc(code: string, formula: string, parentCode: string | null = null): Item {
   return { id: code, templateId: 't', code, parentCode, order: 0, form: 'cf', kind: 'calc', name: code, formulaDefault: formula }
@@ -78,7 +78,7 @@ describe('buildCalcPlan', () => {
   })
 
   it('реальный шаблон ДДС строится без циклов', () => {
-    const plan = buildCalcPlan(DDS_ITEMS, [])
+    const plan = buildCalcPlan(buildDdsItems(), [])
     // все calc-статьи в порядке
     for (const code of ['v_result', 'inc_total', 'exp_total', 'bal_total']) {
       expect(plan.order).toContain(code)

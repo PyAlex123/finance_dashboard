@@ -7,7 +7,7 @@ import {
   derivePeriods,
   formatPeriod,
 } from './periods'
-import { operations } from '../data/fixtures'
+import { buildFixtureSnapshot } from '../data/fixtures'
 
 describe('periods', () => {
   it('periodOf извлекает YYYY-MM', () => {
@@ -36,7 +36,7 @@ describe('periods', () => {
   })
 
   it('derivePeriods даёт упорядоченный уникальный набор из журнала', () => {
-    expect(derivePeriods(operations)).toEqual(['2025-01', '2025-02', '2025-03'])
+    expect(derivePeriods(buildFixtureSnapshot().operations)).toEqual(['2025-01', '2025-02', '2025-03'])
   })
 
   it('formatPeriod', () => {

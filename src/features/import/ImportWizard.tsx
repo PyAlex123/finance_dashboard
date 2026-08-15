@@ -8,13 +8,19 @@ import {
 } from '../../data/importExcel'
 import { parsePeriodLabel } from '../../engine/periods'
 import { applyPlImport, applyDdsImport, type ImportMode } from './applyImport'
+import { t } from '../../i18n'
+import { useT } from '../../i18n/react'
 
 type Role = 'none' | 'date' | 'type' | 'desc' | 'category' | 'note' | 'account'
-const ROLE_LABEL: Record<Role, string> = {
-  none: '—', date: 'Дата', type: 'Тип', desc: 'Описание', category: 'Категория', note: 'Примечание', account: 'Счёт',
-}
+// Функция, а не константа: подписи ролей столбцов зависят от языка.
+const roleLabels = (): Record<Role, string> => ({
+  none: t('wizard.role.none'), date: t('wizard.role.date'), type: t('wizard.role.type'),
+  desc: t('wizard.role.desc'), category: t('wizard.role.category'),
+  note: t('wizard.role.note'), account: t('wizard.role.account'),
+})
 
 export default function ImportWizard({ buf, onClose }: { buf: ArrayBuffer; onClose: () => void }) {
+  useT() // подписка на смену языка для всего мастера
   const dispatch = useAppDispatch()
   const current = useAppSelector(selectData)
   const wb = useMemo(() => readWorkbookGrids(buf), [buf])
@@ -60,13 +66,18 @@ export default function ImportWizard({ buf, onClose }: { buf: ArrayBuffer; onClo
         const p = parsePlMatrix(grid, { headerRow, labelCol, periodCols }, { defaultYear: year })
         const inputs = p.items.filter((i) => i.kind === 'input').length
         const calcs = p.items.filter((i) => i.kind === 'calc').length
-        return `Периодов: ${p.periods.length} · строк ввода: ${inputs} · расчётных: ${calcs}`
+        return t('wizard.preview.pl', { periods: p.periods.length, inputs, calcs })
       }
       const mapping = ddsMappingFrom(roles, headerRowForDds())
       const p = parseDdsJournal(grid, mapping, { defaultYear: year })
-      return `Операций: ${p.operations.length} · счетов: ${p.accounts.length} · категорий: ${p.categories.length} · нач. остатков: ${p.openingBalances.length}`
+      return t('wizard.preview.dds', {
+        operations: p.operations.length,
+        accounts: p.accounts.length,
+        categories: p.categories.length,
+        opening: p.openingBalances.length,
+      })
     } catch (e) {
-      return 'Ошибка предпросмотра: ' + (e instanceof Error ? e.message : String(e))
+      return t('wizard.preview.error', { message: e instanceof Error ? e.message : String(e) })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, grid, headerRow, labelCol, year, roles])
@@ -81,7 +92,7 @@ export default function ImportWizard({ buf, onClose }: { buf: ArrayBuffer; onClo
     }
     const accountCols = Object.entries(r)
       .filter(([, v]) => v === 'account')
-      .map(([col]) => ({ col: Number(col), name: String((grid[hr] ?? [])[Number(col)] ?? `Счёт ${col}`) }))
+      .map(([col]) => ({ col: Number(col), name: String((grid[hr] ?? [])[Number(col)] ?? t('wizard.accountFallback', { col })) }))
     return {
       headerRow: hr,
       dateCol: findRole('date'), typeCol: findRole('type'), descCol: findRole('desc'),
@@ -98,52 +109,52 @@ export default function ImportWizard({ buf, onClose }: { buf: ArrayBuffer; onClo
       dispatch(hydrate(next))
       onClose()
     } catch (e) {
-      setError('Не удалось импортировать: ' + (e instanceof Error ? e.message : String(e)))
+      setError(t('wizard.error', { message: e instanceof Error ? e.message : String(e) }))
     }
   }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal--wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal__title">Импорт из Excel</h3>
+        <h3 className="modal__title">{t('wizard.title')}</h3>
 
         <div className="imp__controls">
           {wb.sheetNames.length > 1 && (
             <label className="field">
-              <span>Лист</span>
+              <span>{t('wizard.sheet')}</span>
               <select value={sheet} onChange={(e) => reDetect(e.target.value)}>
                 {wb.sheetNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </label>
           )}
           <label className="field">
-            <span>Тип отчёта</span>
+            <span>{t('wizard.reportType')}</span>
             <select value={kind} onChange={(e) => setKind(e.target.value as ReportKind)}>
-              <option value="dds">ДДС (журнал)</option>
-              <option value="pl">P&L (матрица)</option>
+              <option value="dds">{t('wizard.type.dds')}</option>
+              <option value="pl">{t('wizard.type.pl')}</option>
             </select>
           </label>
           <label className="field">
-            <span>Год по умолчанию</span>
+            <span>{t('wizard.defaultYear')}</span>
             <input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || year)} />
           </label>
           <label className="field">
-            <span>Режим</span>
+            <span>{t('wizard.mode')}</span>
             <select value={mode} onChange={(e) => setMode(e.target.value as ImportMode)}>
-              <option value="replace">Заменить</option>
-              <option value="merge">Дополнить</option>
+              <option value="replace">{t('wizard.mode.replace')}</option>
+              <option value="merge">{t('wizard.mode.merge')}</option>
             </select>
           </label>
           {kind === 'pl' && (
             <>
               <label className="field">
-                <span>Строка-заголовок</span>
+                <span>{t('wizard.headerRow')}</span>
                 <select value={headerRow} onChange={(e) => setHeaderRow(Number(e.target.value))}>
                   {grid.slice(0, 20).map((_, i) => <option key={i} value={i}>{i + 1}</option>)}
                 </select>
               </label>
               <label className="field">
-                <span>Колонка названий</span>
+                <span>{t('wizard.nameColumn')}</span>
                 <select value={labelCol} onChange={(e) => setLabelCol(Number(e.target.value))}>
                   {Array.from({ length: colCount }, (_, c) => <option key={c} value={c}>{colName(c)}</option>)}
                 </select>
@@ -162,7 +173,7 @@ export default function ImportWizard({ buf, onClose }: { buf: ArrayBuffer; onClo
                   {Array.from({ length: colCount }, (_, c) => (
                     <td key={c}>
                       <select value={roles[c] ?? 'none'} onChange={(e) => setRoles({ ...roles, [c]: e.target.value as Role })}>
-                        {(Object.keys(ROLE_LABEL) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+                        {(Object.keys(roleLabels()) as Role[]).map((r) => <option key={r} value={r}>{roleLabels()[r]}</option>)}
                       </select>
                     </td>
                   ))}
@@ -188,8 +199,8 @@ export default function ImportWizard({ buf, onClose }: { buf: ArrayBuffer; onClo
         {error && <div className="modal__error">{error}</div>}
 
         <div className="modal__actions">
-          <button className="btn btn--primary" onClick={confirm}>Импортировать</button>
-          <button className="btn" onClick={onClose}>Отмена</button>
+          <button className="btn btn--primary" onClick={confirm}>{t('wizard.confirm')}</button>
+          <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
         </div>
       </div>
     </div>

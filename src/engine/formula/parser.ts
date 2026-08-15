@@ -7,6 +7,8 @@
 
 import { tokenize, type Token } from './lexer'
 import { FUNCTIONS, FormulaError, type FunctionName, type Node } from './ast'
+// t занято локальной переменной токена — переводчик берём под псевдонимом.
+import { t as tr } from '../../i18n'
 
 const FUNC_SET = new Set<string>(FUNCTIONS)
 
@@ -23,7 +25,7 @@ class Parser {
   private expect(type: Token['type']): Token {
     const t = this.peek()
     if (t.type !== type) {
-      throw new FormulaError(`Ожидался «${type}», получено «${t.value || t.type}»`, t.pos)
+      throw new FormulaError(tr('error.formula.expected', { expected: type, got: t.value || t.type }), t.pos)
     }
     return this.next()
   }
@@ -32,7 +34,7 @@ class Parser {
     const node = this.expr()
     if (this.peek().type !== 'eof') {
       const t = this.peek()
-      throw new FormulaError(`Лишний ввод после выражения: «${t.value}»`, t.pos)
+      throw new FormulaError(tr('error.formula.trailingInput', { value: t.value }), t.pos)
     }
     return node
   }
@@ -84,7 +86,7 @@ class Parser {
         // функция?
         if (this.peek().type === 'lparen') {
           if (!FUNC_SET.has(t.value)) {
-            throw new FormulaError(`Неизвестная функция «${t.value}»`, t.pos)
+            throw new FormulaError(tr('error.formula.unknownFunction', { name: t.value }), t.pos)
           }
           return this.callArgs(t.value as FunctionName, t.pos)
         }
@@ -93,7 +95,7 @@ class Parser {
         return { type: 'ref', code: t.value }
       }
       default:
-        throw new FormulaError(`Неожиданный токен «${t.value || t.type}»`, t.pos)
+        throw new FormulaError(tr('error.formula.unexpectedToken', { value: t.value || t.type }), t.pos)
     }
   }
 
@@ -128,7 +130,7 @@ function validateArity(name: FunctionName, args: Node[], pos: number): void {
     : args.length === spec
   if (!ok) {
     const want = Array.isArray(spec) ? `${spec[0]}–${spec[1]}` : String(spec)
-    throw new FormulaError(`Функция ${name} ожидает ${want} аргумент(ов), получено ${args.length}`, pos)
+    throw new FormulaError(tr('error.formula.arity', { name, want, got: args.length }), pos)
   }
 }
 

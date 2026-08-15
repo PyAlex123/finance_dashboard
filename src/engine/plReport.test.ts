@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildReport, rowTotal } from './report'
 import { buildEmptySnapshot } from '../data/fixtures'
-import { PL_TEMPLATE } from '../data/plTemplate'
+import { plTemplate } from '../data/plTemplate'
 import { buildPlExample } from '../data/plExample'
 import { runChecks, allChecksOk } from './checks'
 import { fromMajor } from '../domain/money'
@@ -12,7 +12,7 @@ const maj = (arr: number[]) => arr.map((n) => fromMajor(n))
 function plExampleData(): DataSnapshot {
   const s = buildEmptySnapshot()
   const ex = buildPlExample()
-  s.templates = [...s.templates, ...PL_TEMPLATE]
+  s.templates = [...s.templates, ...plTemplate()]
   s.items = ex.items
   s.plPeriods = ex.periods
   s.cellValues = ex.cellValues

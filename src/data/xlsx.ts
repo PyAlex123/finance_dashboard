@@ -12,8 +12,9 @@ import { buildReport, rowTotal, type Report } from '../engine/report'
 import { buildAutoCfItems } from '../engine/autoCf'
 import { formatPeriod } from '../engine/periods'
 import { computeDashboard } from '../features/dashboard/dashboardSelectors'
-import { buildJournalRows, TYPE_LABEL } from '../features/journal/journalRows'
+import { buildJournalRows, typeLabels } from '../features/journal/journalRows'
 import { exportJson, importJson } from './json'
+import { t } from '../i18n'
 
 const SNAPSHOT_SHEET = 'Данные'
 const SNAPSHOT_CELL = 'A1'
@@ -103,7 +104,11 @@ function reportSheet(data: DataSnapshot): XLSX.WorkSheet {
   }
 
   const matrix: (Cell | null)[][] = []
-  matrix.push([{ v: 'Статья' }, ...report.periods.map((p) => ({ v: formatPeriod(p) })), { v: 'ИТОГО' }])
+  matrix.push([
+    { v: t('report.col.item') },
+    ...report.periods.map((p) => ({ v: formatPeriod(p) })),
+    { v: t('report.col.total') },
+  ])
 
   report.rows.forEach((row, idx) => {
     const r = idx + 1 // 0-based строка листа
@@ -150,15 +155,18 @@ function dashboardSheet(data: DataSnapshot): XLSX.WorkSheet {
   const m: (Cell | null)[][] = []
   const money = (v: number): Cell => ({ v, z: Z_MONEY })
 
-  m.push([{ v: 'Дашборд ДДС' }])
+  m.push([{ v: t('xlsx.dash.title') }])
   m.push([])
-  m.push([{ v: 'Ключевые показатели' }])
-  m.push([{ v: 'Итого поступления' }, money(toMajorNumber(d.kpis.totalIn))])
-  m.push([{ v: 'Итого списания' }, money(toMajorNumber(d.kpis.totalOut))])
-  m.push([{ v: 'Чистый результат' }, money(toMajorNumber(d.kpis.result))])
-  m.push([{ v: 'Остаток на конец' }, money(toMajorNumber(d.kpis.endingBalance))])
+  m.push([{ v: t('xlsx.dash.kpis') }])
+  m.push([{ v: t('xlsx.dash.totalIn') }, money(toMajorNumber(d.kpis.totalIn))])
+  m.push([{ v: t('xlsx.dash.totalOut') }, money(toMajorNumber(d.kpis.totalOut))])
+  m.push([{ v: t('xlsx.dash.result') }, money(toMajorNumber(d.kpis.result))])
+  m.push([{ v: t('xlsx.dash.ending') }, money(toMajorNumber(d.kpis.endingBalance))])
   m.push([])
-  m.push([{ v: 'Помесячно' }, { v: 'Приход' }, { v: 'Расход' }, { v: 'Результат' }, { v: 'Остаток' }])
+  m.push([
+    { v: t('xlsx.dash.monthly') }, { v: t('xlsx.dash.in') }, { v: t('xlsx.dash.out') },
+    { v: t('xlsx.dash.res') }, { v: t('xlsx.dash.balance') },
+  ])
   d.monthLabels.forEach((label, i) => {
     m.push([
       { v: label },
@@ -166,7 +174,7 @@ function dashboardSheet(data: DataSnapshot): XLSX.WorkSheet {
     ])
   })
   m.push([])
-  m.push([{ v: 'Расходы по категориям' }, { v: 'Сумма' }, { v: 'Доля' }])
+  m.push([{ v: t('xlsx.dash.byCategory') }, { v: t('xlsx.dash.amount') }, { v: t('xlsx.dash.share') }])
   d.expenses.forEach((e) => {
     m.push([{ v: e.name }, money(toMajorNumber(e.amount)), { v: e.share, z: Z_PCT }])
   })
@@ -180,16 +188,17 @@ function journalSheet(data: DataSnapshot): XLSX.WorkSheet {
   const accounts = activeAccounts(data)
   const journal = buildJournalRows(data.operations, data.operationLines, accounts, data.categories)
   const header = [
-    '№', 'Дата', 'Тип', 'Описание', 'Категория',
+    t('journal.col.index'), t('journal.col.date'), t('journal.col.type'),
+    t('journal.col.description'), t('journal.col.category'),
     ...accounts.map((a) => a.name),
-    'Примечание',
+    t('journal.col.note'),
   ]
   const rows: (string | number)[][] = [header]
   for (const r of journal) {
     rows.push([
       r.index,
       r.date,
-      TYPE_LABEL[r.type],
+      typeLabels()[r.type],
       r.description,
       r.categoryName,
       ...accounts.map((a) => {
@@ -205,9 +214,9 @@ function journalSheet(data: DataSnapshot): XLSX.WorkSheet {
 /** Собрать книгу Excel: Отчёт + Дашборд + Журнал + скрытый снимок. */
 export function exportWorkbook(data: DataSnapshot): XLSX.WorkBook {
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, reportSheet(data), 'Отчёт')
-  XLSX.utils.book_append_sheet(wb, dashboardSheet(data), 'Дашборд')
-  XLSX.utils.book_append_sheet(wb, journalSheet(data), 'Журнал')
+  XLSX.utils.book_append_sheet(wb, reportSheet(data), t('xlsx.sheet.report'))
+  XLSX.utils.book_append_sheet(wb, dashboardSheet(data), t('xlsx.sheet.dashboard'))
+  XLSX.utils.book_append_sheet(wb, journalSheet(data), t('xlsx.sheet.journal'))
 
   const snap = XLSX.utils.aoa_to_sheet([[exportJson(data)]])
   XLSX.utils.book_append_sheet(wb, snap, SNAPSHOT_SHEET)
@@ -230,12 +239,12 @@ export function importXlsx(buf: ArrayBuffer): DataSnapshot {
   const wb = XLSX.read(buf, { type: 'array' })
   const sheet = wb.Sheets[SNAPSHOT_SHEET]
   if (!sheet) {
-    throw new Error('Файл без листа «Данные» — экспортируйте его из этого приложения')
+    throw new Error(t('xlsx.error.noSheet', { sheet: SNAPSHOT_SHEET }))
   }
   const cell = sheet[SNAPSHOT_CELL] as XLSX.CellObject | undefined
   const json = cell?.v
   if (typeof json !== 'string') {
-    throw new Error('Лист «Данные» пуст или повреждён')
+    throw new Error(t('xlsx.error.emptySheet', { sheet: SNAPSHOT_SHEET }))
   }
   return importJson(json)
 }

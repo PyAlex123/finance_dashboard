@@ -2,13 +2,16 @@ import { useState } from 'react'
 import type { RefObject } from 'react'
 import { href, linkHandler } from '../../routes'
 import { FinloLockup } from './Logo'
+import LangSwitch from '../ui/LangSwitch'
+import { useT } from '../../i18n/react'
 
+// Ключи, а не подписи: массив вычисляется при импорте — см. src/App.tsx.
 const LINKS = [
-  { hash: '#features', label: 'Возможности' },
-  { hash: '#how', label: 'Как работает' },
-  { hash: '#audience', label: 'Для кого' },
-  { hash: '#learn', label: 'Обучение' },
-]
+  { hash: '#features', labelKey: 'lp.nav.features' },
+  { hash: '#how', labelKey: 'lp.nav.how' },
+  { hash: '#audience', labelKey: 'lp.nav.audience' },
+  { hash: '#learn', labelKey: 'lp.nav.learn' },
+] as const
 
 export interface LandingHeaderProps {
   barRef: RefObject<HTMLElement | null>
@@ -19,8 +22,11 @@ export interface LandingHeaderProps {
 // Прилипшая шапка. Класс is-stuck вешает useLandingScroll, меню — обычный
 // useState; раскладку (меню/бургер/«Войти») определяют медиазапросы landing.css.
 export default function LandingHeader({ barRef, loggedIn }: LandingHeaderProps) {
+  const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
-  const enter = loggedIn ? { path: '/app', label: 'Открыть кабинет' } : { path: '/login', label: 'Войти' }
+  const enter = loggedIn
+    ? { path: '/app', label: t('lp.enter.app') }
+    : { path: '/login', label: t('lp.enter.login') }
 
   return (
     <header className="lp-bar" ref={barRef as RefObject<HTMLElement>}>
@@ -31,7 +37,7 @@ export default function LandingHeader({ barRef, loggedIn }: LandingHeaderProps) 
 
         <nav className="lp-nav">
           {LINKS.map((l) => (
-            <a key={l.hash} href={l.hash}>{l.label}</a>
+            <a key={l.hash} href={l.hash}>{t(l.labelKey)}</a>
           ))}
         </nav>
 
@@ -43,12 +49,15 @@ export default function LandingHeader({ barRef, loggedIn }: LandingHeaderProps) 
           >
             {enter.label}
           </a>
+          {/* Переключатель стоит ПЕРЕД кнопками входа: так он не сдвигает две
+              главные CTA от правого края. */}
+          <LangSwitch className="lp-langswitch" />
           <a className="lp-btn lp-btn--dark" href={href('/login')} onClick={linkHandler('/login')}>
-            Начать бесплатно
+            {t('lp.cta.start')}
           </a>
           <button
             className="lp-burger"
-            aria-label="Меню"
+            aria-label={t('lp.menu')}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >
@@ -62,7 +71,7 @@ export default function LandingHeader({ barRef, loggedIn }: LandingHeaderProps) 
       <div className={`lp-menu ${menuOpen ? 'is-open' : ''}`}>
         <div className="lp-menu__inner">
           {LINKS.map((l) => (
-            <a key={l.hash} href={l.hash} onClick={() => setMenuOpen(false)}>{l.label}</a>
+            <a key={l.hash} href={l.hash} onClick={() => setMenuOpen(false)}>{t(l.labelKey)}</a>
           ))}
           <a
             className="lp-menu__login"
@@ -71,6 +80,8 @@ export default function LandingHeader({ barRef, loggedIn }: LandingHeaderProps) 
           >
             {enter.label}
           </a>
+          {/* Мобильная копия переключателя внутри .lp-menu — прячется с бургером. */}
+          <LangSwitch className="lp-langswitch lp-langswitch--menu" />
         </div>
       </div>
     </header>

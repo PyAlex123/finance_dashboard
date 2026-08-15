@@ -4,6 +4,7 @@
 // ref / FIRST / LAST / TOTAL / SUM(children) — «жёсткие»: код должен быть посчитан раньше.
 
 import { FormulaError, type Node } from './ast'
+import { t } from '../../i18n'
 import type { Item } from '../../domain/types'
 import { parseFormula } from './parser'
 
@@ -18,7 +19,7 @@ export interface Deps {
 
 export class CycleError extends FormulaError {
   constructor(public cycle: string[]) {
-    super(`Циклическая зависимость статей: ${cycle.join(' → ')}`)
+    super(t('error.formula.cycle', { cycle: cycle.join(' → ') }))
     this.name = 'CycleError'
   }
 }
@@ -104,13 +105,13 @@ export function buildCalcPlan(items: Item[], overrides: { itemCode: string; form
   for (const it of items) {
     if (it.kind !== 'calc') continue
     const formula = resolveFormula(it, overrideByCode)
-    if (!formula) throw new FormulaError(`У calc-статьи «${it.code}» нет формулы`)
+    if (!formula) throw new FormulaError(t('error.formula.noFormula', { code: it.code }))
     let ast: Node
     try {
       ast = parseFormula(formula)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      throw new FormulaError(`Ошибка в формуле статьи «${it.code}»: ${msg}`)
+      throw new FormulaError(t('error.formula.inItem', { code: it.code, message: msg }))
     }
     astByCode.set(it.code, ast)
     const deps = extractDeps(ast)

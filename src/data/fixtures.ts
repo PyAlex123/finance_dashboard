@@ -14,34 +14,44 @@ import type {
   Scenario,
 } from '../domain/types'
 import { fromMajor } from '../domain/money'
-import { DDS_TEMPLATE, DDS_ITEMS } from './ddsTemplate'
+import { ddsTemplate, buildDdsItems } from './ddsTemplate'
+import { t, type Key, type Locale } from '../i18n'
 
 // --- Счета (в сумах; порядок = столбцы G,H,I,J исходной таблицы) ---
-export const accounts: Account[] = [
-  { id: 'acc-cash-uzs', code: 'cash_uzs', name: 'Наличные (сум)', currency: 'UZS', order: 1, active: true },
-  { id: 'acc-card-uzs', code: 'card_uzs', name: 'Карта UZS', currency: 'UZS', order: 2, active: true },
-  { id: 'acc-card-usd', code: 'card_usd', name: 'Карта USD (в сумах)', currency: 'UZS', order: 3, active: true },
-  { id: 'acc-settle', code: 'settle', name: 'Расч. счёт', currency: 'UZS', order: 4, active: true },
-]
+// Функции, а не константы: демо-данные создаются на языке, активном в момент
+// нажатия «Загрузить пример». См. пояснение в data/ddsTemplate.ts.
+export function fixtureAccounts(locale?: Locale): Account[] {
+  const tr = (key: Key) => t(key, undefined, locale)
+  return [
+    { id: 'acc-cash-uzs', code: 'cash_uzs', name: tr('seed.account.cash_uzs'), currency: 'UZS', order: 1, active: true },
+    { id: 'acc-card-uzs', code: 'card_uzs', name: tr('seed.account.card_uzs'), currency: 'UZS', order: 2, active: true },
+    { id: 'acc-card-usd', code: 'card_usd', name: tr('seed.account.card_usd'), currency: 'UZS', order: 3, active: true },
+    { id: 'acc-settle', code: 'settle', name: tr('seed.account.settle'), currency: 'UZS', order: 4, active: true },
+  ]
+}
 
 // --- Категории ---
-export const categories: Category[] = [
-  { id: 'cat-sale', code: 'sale', name: 'Продажа курсов', direction: 'in', order: 1 },
-  { id: 'cat-consult', code: 'consult', name: 'Консультации', direction: 'in', order: 2 },
-  { id: 'cat-other', code: 'other_in', name: 'Прочие доходы', direction: 'in', order: 3 },
-  { id: 'cat-salary', code: 'salary', name: 'Оплата труда', direction: 'out', order: 4 },
-  { id: 'cat-rent', code: 'rent', name: 'Аренда', direction: 'out', order: 5 },
-  { id: 'cat-marketing', code: 'marketing', name: 'Маркетинг', direction: 'out', order: 6 },
-  { id: 'cat-office', code: 'office', name: 'Офисные расходы', direction: 'out', order: 7 },
-  { id: 'cat-tax', code: 'tax', name: 'Налоги', direction: 'out', order: 8 },
-  { id: 'cat-transfer', code: 'transfer', name: 'Переброска', direction: 'transfer', order: 9 },
-]
+export function fixtureCategories(locale?: Locale): Category[] {
+  const tr = (key: Key) => t(key, undefined, locale)
+  return [
+    { id: 'cat-sale', code: 'sale', name: tr('seed.category.sale'), direction: 'in', order: 1 },
+    { id: 'cat-consult', code: 'consult', name: tr('seed.category.consult'), direction: 'in', order: 2 },
+    { id: 'cat-other', code: 'other_in', name: tr('seed.category.other_in'), direction: 'in', order: 3 },
+    { id: 'cat-salary', code: 'salary', name: tr('seed.category.salary'), direction: 'out', order: 4 },
+    { id: 'cat-rent', code: 'rent', name: tr('seed.category.rent'), direction: 'out', order: 5 },
+    { id: 'cat-marketing', code: 'marketing', name: tr('seed.category.marketing'), direction: 'out', order: 6 },
+    { id: 'cat-office', code: 'office', name: tr('seed.category.office'), direction: 'out', order: 7 },
+    { id: 'cat-tax', code: 'tax', name: tr('seed.category.tax'), direction: 'out', order: 8 },
+    { id: 'cat-transfer', code: 'transfer', name: tr('seed.category.transfer'), direction: 'transfer', order: 9 },
+  ]
+}
 
+// Коды -> id: от языка не зависят, поэтому берём русский набор как эталон формы.
 const codeToAccId: Record<string, string> = Object.fromEntries(
-  accounts.map((a) => [a.code, a.id]),
+  fixtureAccounts('ru').map((a) => [a.code, a.id]),
 )
 const codeToCatId: Record<string, string> = Object.fromEntries(
-  categories.map((c) => [c.code, c.id]),
+  fixtureCategories('ru').map((c) => [c.code, c.id]),
 )
 
 // --- Курс USD (справочник; в фикстуре расчёт уже в сумах, курс не применяется) ---
@@ -63,57 +73,57 @@ type OpSpec = {
   date: string
   type: OpType
   cat: string
-  desc: string
-  note?: string
+  descKey: Key
+  noteKey?: Key
   // проводки: код счёта -> сумма в сумах (знаковая: приход +, расход −, переброска − и +)
   lines: Record<string, number>
 }
 
 const OPS: OpSpec[] = [
-  { date: '2025-01-05', type: 'income', cat: 'sale', desc: 'Оплата курса — Алимов А.', note: 'Оплата картой', lines: { card_uzs: 650000 } },
-  { date: '2025-01-07', type: 'income', cat: 'sale', desc: 'Оплата курса — Иванова С.', note: 'Наличные', lines: { cash_uzs: 650000 } },
-  { date: '2025-01-10', type: 'income', cat: 'sale', desc: 'Оплата курса — Каримов Б.', note: 'Оплата картой', lines: { card_uzs: 650000 } },
-  { date: '2025-01-12', type: 'income', cat: 'consult', desc: 'Консультация для ИП «Ромашка»', note: 'Перевод на расч/счёт', lines: { settle: 300000 } },
-  { date: '2025-01-15', type: 'expense', cat: 'salary', desc: 'Зарплата — Менеджер Дилноза', lines: { card_uzs: -500000 } },
-  { date: '2025-01-15', type: 'expense', cat: 'salary', desc: 'Зарплата — Администратор Фаррух', lines: { card_uzs: -450000 } },
-  { date: '2025-01-17', type: 'expense', cat: 'rent', desc: 'Аренда офиса — январь', lines: { settle: -1500000 } },
-  { date: '2025-01-20', type: 'income', cat: 'sale', desc: 'Оплата курса — Петрова М.', note: 'USD картой ($52)', lines: { card_usd: 650000 } },
-  { date: '2025-01-22', type: 'transfer', cat: 'transfer', desc: 'Переброска: наличные → расч/счёт', note: 'Сдали наличку в банк', lines: { cash_uzs: -400000, settle: 400000 } },
-  { date: '2025-01-25', type: 'expense', cat: 'marketing', desc: 'Реклама в Instagram — январь', lines: { card_uzs: -320000 } },
-  { date: '2025-01-28', type: 'expense', cat: 'office', desc: 'Офисные расходы (бумага, кофе)', lines: { cash_uzs: -85000 } },
-  { date: '2025-01-31', type: 'expense', cat: 'tax', desc: 'Налог с оборота — январь', note: '4% от выручки', lines: { settle: -195000 } },
+  { date: '2025-01-05', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_alimov', noteKey: 'seed.op.note.by_card', lines: { card_uzs: 650000 } },
+  { date: '2025-01-07', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_ivanova', noteKey: 'seed.op.note.cash', lines: { cash_uzs: 650000 } },
+  { date: '2025-01-10', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_karimov', noteKey: 'seed.op.note.by_card', lines: { card_uzs: 650000 } },
+  { date: '2025-01-12', type: 'income', cat: 'consult', descKey: 'seed.op.desc.consult_romashka', noteKey: 'seed.op.note.to_settle', lines: { settle: 300000 } },
+  { date: '2025-01-15', type: 'expense', cat: 'salary', descKey: 'seed.op.desc.salary_manager', lines: { card_uzs: -500000 } },
+  { date: '2025-01-15', type: 'expense', cat: 'salary', descKey: 'seed.op.desc.salary_admin', lines: { card_uzs: -450000 } },
+  { date: '2025-01-17', type: 'expense', cat: 'rent', descKey: 'seed.op.desc.rent_jan', lines: { settle: -1500000 } },
+  { date: '2025-01-20', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_petrova', noteKey: 'seed.op.note.usd_card_52', lines: { card_usd: 650000 } },
+  { date: '2025-01-22', type: 'transfer', cat: 'transfer', descKey: 'seed.op.desc.transfer_cash_to_settle', noteKey: 'seed.op.note.cash_to_bank', lines: { cash_uzs: -400000, settle: 400000 } },
+  { date: '2025-01-25', type: 'expense', cat: 'marketing', descKey: 'seed.op.desc.ads_instagram', lines: { card_uzs: -320000 } },
+  { date: '2025-01-28', type: 'expense', cat: 'office', descKey: 'seed.op.desc.office_supplies', lines: { cash_uzs: -85000 } },
+  { date: '2025-01-31', type: 'expense', cat: 'tax', descKey: 'seed.op.desc.tax_jan', noteKey: 'seed.op.note.tax_4pct', lines: { settle: -195000 } },
 
-  { date: '2025-02-03', type: 'income', cat: 'sale', desc: 'Оплата курса — Юсупова З.', lines: { card_uzs: 650000 } },
-  { date: '2025-02-05', type: 'income', cat: 'sale', desc: 'Оплата курса — Ахмедов Р.', lines: { cash_uzs: 650000 } },
-  { date: '2025-02-07', type: 'income', cat: 'sale', desc: 'Оплата курса — Назарова Л.', lines: { card_uzs: 650000 } },
-  { date: '2025-02-10', type: 'transfer', cat: 'transfer', desc: 'Переброска: карта UZS → расч/счёт', note: 'Пополнение р/счёта для аренды', lines: { card_uzs: -800000, settle: 800000 } },
-  { date: '2025-02-12', type: 'expense', cat: 'rent', desc: 'Аренда офиса — февраль', lines: { settle: -1500000 } },
-  { date: '2025-02-14', type: 'income', cat: 'consult', desc: 'Консультация — ООО «Старт»', lines: { settle: 500000 } },
-  { date: '2025-02-15', type: 'expense', cat: 'salary', desc: 'Зарплата — Менеджер Дилноза', lines: { card_uzs: -500000 } },
-  { date: '2025-02-15', type: 'expense', cat: 'salary', desc: 'Зарплата — Администратор Фаррух', lines: { card_uzs: -450000 } },
-  { date: '2025-02-20', type: 'expense', cat: 'marketing', desc: 'Таргетированная реклама', note: 'Facebook + Instagram', lines: { card_uzs: -480000 } },
-  { date: '2025-02-22', type: 'expense', cat: 'office', desc: 'Подписка Canva + Zoom', lines: { card_uzs: -75000 } },
-  { date: '2025-02-25', type: 'transfer', cat: 'transfer', desc: 'Переброска: USD карта → наличные', note: 'Сняли $100 наличными', lines: { cash_uzs: 1250000, card_usd: -1250000 } },
-  { date: '2025-02-28', type: 'expense', cat: 'tax', desc: 'Налог с оборота — февраль', lines: { settle: -234000 } },
+  { date: '2025-02-03', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_yusupova', lines: { card_uzs: 650000 } },
+  { date: '2025-02-05', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_akhmedov', lines: { cash_uzs: 650000 } },
+  { date: '2025-02-07', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_nazarova', lines: { card_uzs: 650000 } },
+  { date: '2025-02-10', type: 'transfer', cat: 'transfer', descKey: 'seed.op.desc.transfer_card_to_settle', noteKey: 'seed.op.note.topup_for_rent', lines: { card_uzs: -800000, settle: 800000 } },
+  { date: '2025-02-12', type: 'expense', cat: 'rent', descKey: 'seed.op.desc.rent_feb', lines: { settle: -1500000 } },
+  { date: '2025-02-14', type: 'income', cat: 'consult', descKey: 'seed.op.desc.consult_start', lines: { settle: 500000 } },
+  { date: '2025-02-15', type: 'expense', cat: 'salary', descKey: 'seed.op.desc.salary_manager', lines: { card_uzs: -500000 } },
+  { date: '2025-02-15', type: 'expense', cat: 'salary', descKey: 'seed.op.desc.salary_admin', lines: { card_uzs: -450000 } },
+  { date: '2025-02-20', type: 'expense', cat: 'marketing', descKey: 'seed.op.desc.ads_target', noteKey: 'seed.op.note.fb_ig', lines: { card_uzs: -480000 } },
+  { date: '2025-02-22', type: 'expense', cat: 'office', descKey: 'seed.op.desc.subscriptions', lines: { card_uzs: -75000 } },
+  { date: '2025-02-25', type: 'transfer', cat: 'transfer', descKey: 'seed.op.desc.transfer_usd_to_cash', noteKey: 'seed.op.note.withdrew_100', lines: { cash_uzs: 1250000, card_usd: -1250000 } },
+  { date: '2025-02-28', type: 'expense', cat: 'tax', descKey: 'seed.op.desc.tax_feb', lines: { settle: -234000 } },
 
-  { date: '2025-03-03', type: 'income', cat: 'sale', desc: 'Оплата курса — Rakhimova D.', lines: { card_uzs: 650000 } },
-  { date: '2025-03-04', type: 'income', cat: 'sale', desc: 'Оплата курса — Mirzayev S.', lines: { card_uzs: 650000 } },
-  { date: '2025-03-05', type: 'income', cat: 'sale', desc: 'Оплата курса — Tojiboeva N.', lines: { cash_uzs: 650000 } },
-  { date: '2025-03-07', type: 'income', cat: 'sale', desc: 'Оплата курса — Hamidov A.', note: 'USD картой', lines: { card_usd: 650000 } },
-  { date: '2025-03-10', type: 'income', cat: 'consult', desc: 'Корпоративный заказ — ООО «Успех»', lines: { settle: 1200000 } },
-  { date: '2025-03-12', type: 'expense', cat: 'rent', desc: 'Аренда офиса — март', lines: { settle: -1500000 } },
-  { date: '2025-03-15', type: 'expense', cat: 'salary', desc: 'Зарплата — Менеджер Дилноза', lines: { card_uzs: -500000 } },
-  { date: '2025-03-15', type: 'expense', cat: 'salary', desc: 'Зарплата — Администратор Фаррух', lines: { card_uzs: -450000 } },
-  { date: '2025-03-15', type: 'expense', cat: 'salary', desc: 'Бонус — Менеджер Дилноза', note: 'Бонус за продажи', lines: { card_uzs: -200000 } },
-  { date: '2025-03-18', type: 'transfer', cat: 'transfer', desc: 'Переброска: наличные → карта UZS', note: 'Перевели наличку на карту', lines: { cash_uzs: -650000, card_uzs: 650000 } },
-  { date: '2025-03-20', type: 'expense', cat: 'marketing', desc: 'Таргетированная реклама — март', note: 'Увеличили бюджет', lines: { card_uzs: -650000 } },
-  { date: '2025-03-22', type: 'expense', cat: 'office', desc: 'Офисные расходы (бумага, кофе)', lines: { cash_uzs: -120000 } },
-  { date: '2025-03-25', type: 'expense', cat: 'tax', desc: 'Налог с оборота — март', lines: { settle: -268000 } },
-  { date: '2025-03-28', type: 'income', cat: 'other_in', desc: 'Реферальный бонус', note: 'Для примера', lines: { card_uzs: 150000 } },
-  { date: '2025-03-28', type: 'expense', cat: 'office', desc: 'Офисные расходы (бумага, кофе)', note: 'для примера', lines: { cash_uzs: -1000000 } },
+  { date: '2025-03-03', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_rakhimova', lines: { card_uzs: 650000 } },
+  { date: '2025-03-04', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_mirzayev', lines: { card_uzs: 650000 } },
+  { date: '2025-03-05', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_tojiboeva', lines: { cash_uzs: 650000 } },
+  { date: '2025-03-07', type: 'income', cat: 'sale', descKey: 'seed.op.desc.course_hamidov', noteKey: 'seed.op.note.usd_card', lines: { card_usd: 650000 } },
+  { date: '2025-03-10', type: 'income', cat: 'consult', descKey: 'seed.op.desc.consult_uspeh', lines: { settle: 1200000 } },
+  { date: '2025-03-12', type: 'expense', cat: 'rent', descKey: 'seed.op.desc.rent_mar', lines: { settle: -1500000 } },
+  { date: '2025-03-15', type: 'expense', cat: 'salary', descKey: 'seed.op.desc.salary_manager', lines: { card_uzs: -500000 } },
+  { date: '2025-03-15', type: 'expense', cat: 'salary', descKey: 'seed.op.desc.salary_admin', lines: { card_uzs: -450000 } },
+  { date: '2025-03-15', type: 'expense', cat: 'salary', descKey: 'seed.op.desc.bonus_manager', noteKey: 'seed.op.note.sales_bonus', lines: { card_uzs: -200000 } },
+  { date: '2025-03-18', type: 'transfer', cat: 'transfer', descKey: 'seed.op.desc.transfer_cash_to_card', noteKey: 'seed.op.note.cash_to_card', lines: { cash_uzs: -650000, card_uzs: 650000 } },
+  { date: '2025-03-20', type: 'expense', cat: 'marketing', descKey: 'seed.op.desc.ads_target_mar', noteKey: 'seed.op.note.budget_up', lines: { card_uzs: -650000 } },
+  { date: '2025-03-22', type: 'expense', cat: 'office', descKey: 'seed.op.desc.office_supplies', lines: { cash_uzs: -120000 } },
+  { date: '2025-03-25', type: 'expense', cat: 'tax', descKey: 'seed.op.desc.tax_mar', lines: { settle: -268000 } },
+  { date: '2025-03-28', type: 'income', cat: 'other_in', descKey: 'seed.op.desc.referral_bonus', noteKey: 'seed.op.note.example', lines: { card_uzs: 150000 } },
+  { date: '2025-03-28', type: 'expense', cat: 'office', descKey: 'seed.op.desc.office_supplies', noteKey: 'seed.op.note.example', lines: { cash_uzs: -1000000 } },
 ]
 
-function buildJournal(): { operations: Operation[]; operationLines: OperationLine[] } {
+function buildJournal(locale?: Locale): { operations: Operation[]; operationLines: OperationLine[] } {
   const operations: Operation[] = []
   const operationLines: OperationLine[] = []
   OPS.forEach((spec, i) => {
@@ -122,9 +132,9 @@ function buildJournal(): { operations: Operation[]; operationLines: OperationLin
       id: opId,
       date: spec.date,
       type: spec.type,
-      description: spec.desc,
+      description: t(spec.descKey, undefined, locale),
       categoryId: codeToCatId[spec.cat] ?? null,
-      note: spec.note,
+      note: spec.noteKey ? t(spec.noteKey, undefined, locale) : undefined,
     })
     Object.entries(spec.lines).forEach(([accCode, major], j) => {
       operationLines.push({
@@ -139,45 +149,59 @@ function buildJournal(): { operations: Operation[]; operationLines: OperationLin
   return { operations, operationLines }
 }
 
-const journal = buildJournal()
-export const operations = journal.operations
-export const operationLines = journal.operationLines
+export function fixtureProjects(locale?: Locale): Project[] {
+  return [
+      {
+        id: 'proj-default',
+        name: t('seed.project.default', undefined, locale),
+        periodStart: '2025-01',
+        periodEnd: '2025-03',
+      },
+  ]
+}
 
-export const projects: Project[] = [
-  { id: 'proj-default', name: 'Учебный проект', periodStart: '2025-01', periodEnd: '2025-03' },
-]
-
-export const scenarios: Scenario[] = [
-  { id: 'scn-fact', projectId: 'proj-default', name: 'Факт', kind: 'fact' },
-]
+export function fixtureScenarios(locale?: Locale): Scenario[] {
+  return [
+      {
+        id: 'scn-fact',
+        projectId: 'proj-default',
+        name: t('seed.scenario.fact', undefined, locale),
+        kind: 'fact',
+      },
+  ]
+}
 
 /** Полный слепок фикстуры для repository / стора. */
-export function buildFixtureSnapshot(): DataSnapshot {
+export function buildFixtureSnapshot(locale?: Locale): DataSnapshot {
+  const journal = buildJournal(locale)
   return {
-    accounts: structuredClone(accounts),
-    categories: structuredClone(categories),
+    accounts: fixtureAccounts(locale),
+    categories: fixtureCategories(locale),
     rates: structuredClone(rates),
     openingBalances: structuredClone(openingBalances),
-    operations: structuredClone(operations),
-    operationLines: structuredClone(operationLines),
-    templates: structuredClone(DDS_TEMPLATE),
-    items: structuredClone(DDS_ITEMS),
+    operations: journal.operations,
+    operationLines: journal.operationLines,
+    templates: ddsTemplate(locale),
+    items: buildDdsItems(locale),
     overrides: [],
     templateVersions: [],
     cellValues: [],
     plPeriods: [],
     cfAuto: true,
-    projects: structuredClone(projects),
-    scenarios: structuredClone(scenarios),
+    projects: fixtureProjects(locale),
+    scenarios: fixtureScenarios(locale),
   }
 }
 
 /** Счета по умолчанию для нового ДДС — можно сразу вводить операции. */
-export const DEFAULT_ACCOUNTS: Account[] = [
-  { id: 'acc-settlement', code: 'settlement', name: 'Р/С', currency: 'UZS', order: 1, active: true },
-  { id: 'acc-cash', code: 'cash', name: 'Наличные', currency: 'UZS', order: 2, active: true },
-  { id: 'acc-card', code: 'card', name: 'Карта', currency: 'UZS', order: 3, active: true },
-]
+export function defaultAccounts(locale?: Locale): Account[] {
+  const tr = (key: Key) => t(key, undefined, locale)
+  return [
+      { id: 'acc-settlement', code: 'settlement', name: tr('seed.account.settlement'), currency: 'UZS', order: 1, active: true },
+      { id: 'acc-cash', code: 'cash', name: tr('seed.account.cash'), currency: 'UZS', order: 2, active: true },
+      { id: 'acc-card', code: 'card', name: tr('seed.account.card'), currency: 'UZS', order: 3, active: true },
+  ]
+}
 
 /**
  * Дополнить снимок счетами по умолчанию, если счетов нет вообще.
@@ -185,20 +209,20 @@ export const DEFAULT_ACCOUNTS: Account[] = [
  */
 export function withDefaultAccounts(data: DataSnapshot): DataSnapshot {
   if (data.accounts.length > 0) return data
-  return { ...data, accounts: structuredClone(DEFAULT_ACCOUNTS) }
+  return { ...data, accounts: defaultAccounts() }
 }
 
 /** Пустой слепок ДДС — «чистый лист» со счетами по умолчанию. */
 export function buildEmptySnapshot(): DataSnapshot {
   return {
-    accounts: structuredClone(DEFAULT_ACCOUNTS),
+    accounts: defaultAccounts(),
     defaultsSeeded: true,
     categories: [],
     rates: [],
     openingBalances: [],
     operations: [],
     operationLines: [],
-    templates: [{ id: 'tpl-dds', name: 'ДДС', form: 'cf', version: 1 }],
+    templates: ddsTemplate(),
     items: [],
     overrides: [],
     templateVersions: [],

@@ -9,19 +9,23 @@ import { selectJournalRows } from './journalRows'
 import { formatMoney } from '../../domain/money'
 import { autoCode } from '../../domain/codes'
 import { useViewMode } from '../shell/ViewMode'
+import { useT } from '../../i18n/react'
+import type { Key } from '../../i18n'
 import type { Money } from '../../domain/money'
 import type { Currency, OperationType } from '../../domain/types'
 
 type Filter = OperationType | 'all'
 
-const TYPE_FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'Все' },
-  { key: 'income', label: 'Приход' },
-  { key: 'expense', label: 'Расход' },
-  { key: 'transfer', label: 'Переброска' },
+// Ключи, а не подписи: массив вычисляется при импорте модуля — см. src/App.tsx.
+const TYPE_FILTERS: { key: Filter; labelKey: Key }[] = [
+  { key: 'all', labelKey: 'journal.filter.all' },
+  { key: 'income', labelKey: 'journal.filter.income' },
+  { key: 'expense', labelKey: 'journal.filter.expense' },
+  { key: 'transfer', labelKey: 'journal.filter.transfer' },
 ]
 
 export default function JournalPanel() {
+  const t = useT()
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectAccounts)
   const rows = useAppSelector(selectJournalRows)
@@ -58,7 +62,7 @@ export default function JournalPanel() {
 
       <div className="actionbar">
         <button className="btn btn--primary" onClick={() => { setEditingId(null); setFormOpen(true) }}>
-          <span className="actionbar__plus" aria-hidden="true">＋</span>Сегодня
+          <span className="actionbar__plus" aria-hidden="true">＋</span>{t('journal.today')}
         </button>
 
         <div className="actionbar__right">
@@ -66,7 +70,7 @@ export default function JournalPanel() {
             <span className="toolbar__inline">
               <input
                 autoFocus
-                placeholder="Название счёта"
+                placeholder={t('journal.accountName')}
                 value={accName}
                 onChange={(e) => setAccName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') addAccount() }}
@@ -75,11 +79,11 @@ export default function JournalPanel() {
                 <option value="UZS">UZS</option>
                 <option value="USD">USD</option>
               </select>
-              <button className="btn btn--small btn--primary" onClick={addAccount}>Добавить</button>
-              <button className="btn btn--small" onClick={() => setAddingAccount(false)}>Отмена</button>
+              <button className="btn btn--small btn--primary" onClick={addAccount}>{t('common.add')}</button>
+              <button className="btn btn--small" onClick={() => setAddingAccount(false)}>{t('common.cancel')}</button>
             </span>
           ) : (
-            <button className="btn" onClick={() => setAddingAccount(true)}>+ Счёт</button>
+            <button className="btn" onClick={() => setAddingAccount(true)}>{t('journal.addAccount')}</button>
           )}
 
           <div className="typefilter">
@@ -89,12 +93,12 @@ export default function JournalPanel() {
                 className={`typefilter__btn typefilter__btn--${f.key} ${typeFilter === f.key ? 'typefilter__btn--active' : ''}`}
                 onClick={() => setTypeFilter(f.key)}
               >
-                {f.label}
+                {t(f.labelKey)}
               </button>
             ))}
           </div>
 
-          <span className="actionbar__count">{shownRows.length} оп.</span>
+          <span className="actionbar__count">{t('journal.count', { count: shownRows.length })}</span>
         </div>
       </div>
 
@@ -102,7 +106,7 @@ export default function JournalPanel() {
         <MobileList
           rows={shownRows}
           onEdit={(id) => { setEditingId(id); setFormOpen(true) }}
-          onDelete={(id) => { if (confirm('Удалить операцию?')) dispatch(deleteOperation(id)) }}
+          onDelete={(id) => { if (confirm(t('journal.delete.confirm'))) dispatch(deleteOperation(id)) }}
         />
       ) : (
         <>
@@ -110,11 +114,11 @@ export default function JournalPanel() {
             <JournalGrid
               typeFilter={typeFilter}
               onEdit={(id) => { setEditingId(id); setFormOpen(true) }}
-              onDelete={(id) => { if (confirm('Удалить операцию?')) dispatch(deleteOperation(id)) }}
+              onDelete={(id) => { if (confirm(t('journal.delete.confirm'))) dispatch(deleteOperation(id)) }}
             />
           </div>
           <span className="panel__hint">
-            ✎ — изменить запись · ✕ — удалить · двойной клик по ячейке — быстрая правка
+            {t('journal.hint')}
           </span>
         </>
       )}
@@ -130,9 +134,12 @@ export default function JournalPanel() {
 }
 
 // Метка типа для мобильных карточек (● / ⇄ + слово, как в эталоне).
-const MOBILE_TYPE: Record<OperationType, string> = {
-  income: '● Приход', expense: '● Расход', transfer: '⇄ Переброска',
-}
+// Функция, а не константа: подпись зависит от языка.
+const mobileType = (t: ReturnType<typeof useT>): Record<OperationType, string> => ({
+  income: t('journal.mobile.income'),
+  expense: t('journal.mobile.expense'),
+  transfer: t('journal.mobile.transfer'),
+})
 const shortDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`
 
 /** Мобильный вид журнала: карточки вместо широкой таблицы (как в эталоне). */
@@ -143,9 +150,11 @@ function MobileList({
   onEdit: (id: string) => void
   onDelete: (id: string) => void
 }) {
+  const t = useT()
   const accounts = useAppSelector(selectAccounts)
+  const typeLabel = mobileType(t)
   if (rows.length === 0) {
-    return <div className="jcards__empty">Журнал пуст — нажмите «Сегодня», чтобы добавить запись</div>
+    return <div className="jcards__empty">{t('journal.empty')}</div>
   }
   return (
     <div className="jcards">
@@ -173,13 +182,13 @@ function MobileList({
             key={r.id}
             className={`jcard jcard--${r.type}`}
             onClick={() => onEdit(r.id)}
-            title="Нажмите, чтобы изменить"
+            title={t('journal.card.edit')}
           >
             <div className="jcard__top">
-              <span className={`jbadge ${badgeCls}`}>{MOBILE_TYPE[r.type]}</span>
+              <span className={`jbadge ${badgeCls}`}>{typeLabel[r.type]}</span>
               <span className={`jcard__amount ${amountCls}`}>{amountText}</span>
             </div>
-            <div className="jcard__desc">{r.description || '—'}</div>
+            <div className="jcard__desc">{r.description || t('common.dash')}</div>
             <div className="jcard__foot">
               <span className="jcard__meta">{shortDate(r.date)}{accLabel ? ` · ${accLabel}` : ''}</span>
               <span className="jcard__footright">
@@ -187,7 +196,7 @@ function MobileList({
                 <button
                   className="jcard__del"
                   onClick={(e) => { e.stopPropagation(); onDelete(r.id) }}
-                  title="Удалить операцию"
+                  title={t('journal.card.delete')}
                 >
                   ✕
                 </button>

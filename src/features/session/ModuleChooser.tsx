@@ -5,7 +5,10 @@ import { formatMoney } from '../../domain/money'
 import { REMOTE } from '../../data/backend'
 import { listReports } from '../../data/reports'
 import ProfileBadge from './ProfileBadge'
+import LangSwitch from '../ui/LangSwitch'
 import { FinloMark } from '../landing/Logo'
+import { moneySuffix } from '../../domain/money'
+import { useT } from '../../i18n/react'
 import type { ReportForm } from '../../domain/types'
 
 export type ModuleId = 'dds' | 'pl' | 'bs'
@@ -13,18 +16,12 @@ export type ModuleId = 'dds' | 'pl' | 'bs'
 // Модуль → тип отчёта (форма). P&L пока скрыт (заглушка «Скоро»).
 const MODULE_FORM: Record<ModuleId, ReportForm> = { dds: 'cf', pl: 'pl', bs: 'bs' }
 
-interface ModuleCard {
-  id: ModuleId
-  eyebrow: string
-  title: string
-  desc: string
-  soon?: boolean
-}
-
-const MODULES: ModuleCard[] = [
-  { id: 'dds', eyebrow: 'Модуль 01', title: 'ДДС', desc: 'Движение денежных средств: приход, расход, переброски.' },
-  { id: 'pl', eyebrow: 'Модуль 02', title: 'P&L', desc: 'Прибыли и убытки по методу начисления.', soon: true },
-  { id: 'bs', eyebrow: 'Модуль 03', title: 'Баланс', desc: 'Активы и обязательства на дату.', soon: true },
+// Только идентификаторы: подписи берутся из словаря в рендере, иначе массив
+// застыл бы на языке, активном при импорте модуля.
+const MODULES: { id: ModuleId; soon?: boolean }[] = [
+  { id: 'dds' },
+  { id: 'pl', soon: true },
+  { id: 'bs', soon: true },
 ]
 
 export default function ModuleChooser({
@@ -37,6 +34,7 @@ export default function ModuleChooser({
   onPick: (id: ModuleId) => void
   onLogout?: () => void
 }) {
+  const t = useT()
   const totalBalance = useAppSelector(selectTotalBalance)
   const netProfit = useAppSelector(selectPlNetProfit)
 
@@ -59,14 +57,19 @@ export default function ModuleChooser({
 
   const stat: Record<ModuleId, { value: string; label: string }> = REMOTE
     ? {
-      dds: { value: counts.dds === undefined ? '—' : String(counts.dds), label: 'отчётов' },
-      pl: { value: '—', label: 'скоро' },
-      bs: { value: '—', label: 'скоро' },
+      // Число отчётов согласуется по форме множественного числа: русскому нужны
+      // «1 отчёт / 2 отчёта / 5 отчётов», английскому — one/other.
+      dds: {
+        value: counts.dds === undefined ? '—' : String(counts.dds),
+        label: t.p('chooser.stat.reports', counts.dds ?? 0),
+      },
+      pl: { value: '—', label: t('chooser.stat.soon') },
+      bs: { value: '—', label: t('chooser.stat.soon') },
     }
     : {
-      dds: { value: formatMoney(totalBalance), label: 'остаток, сум' },
-      pl: { value: netProfit === null ? '—' : formatMoney(netProfit), label: 'скоро' },
-      bs: { value: '—', label: 'скоро' },
+      dds: { value: formatMoney(totalBalance), label: t('chooser.stat.balance', { currency: moneySuffix() }) },
+      pl: { value: netProfit === null ? '—' : formatMoney(netProfit), label: t('chooser.stat.soon') },
+      bs: { value: '—', label: t('chooser.stat.soon') },
     }
 
   return (
@@ -75,16 +78,17 @@ export default function ModuleChooser({
         <div className="chooser__brand">
           <FinloMark className="chooser__logo" />
           <div>
-            <div className="chooser__hello">Здравствуйте, {username}</div>
-            <h1 className="chooser__title">Выберите модуль</h1>
+            <div className="chooser__hello">{t('chooser.hello', { name: username })}</div>
+            <h1 className="chooser__title">{t('chooser.title')}</h1>
           </div>
         </div>
         <div className="chooser__who">
+          <LangSwitch />
           <ProfileBadge name={username} photoUrl={photoUrl} />
           {isAdmin && onOpenAdmin && (
-            <button className="btn" onClick={onOpenAdmin}>👥 Пользователи</button>
+            <button className="btn" onClick={onOpenAdmin}>{t('chooser.admin')}</button>
           )}
-          {onLogout && <button className="btn" onClick={onLogout}>Выйти</button>}
+          {onLogout && <button className="btn" onClick={onLogout}>{t('app.logout')}</button>}
         </div>
       </header>
 
@@ -97,11 +101,11 @@ export default function ModuleChooser({
             onClick={() => !m.soon && onPick(m.id)}
           >
             <div className="modcard__head">
-              <span className="modcard__eyebrow">{m.eyebrow}</span>
-              {m.soon && <span className="modcard__badge">Скоро</span>}
+              <span className="modcard__eyebrow">{t(`chooser.module.${m.id}.eyebrow`)}</span>
+              {m.soon && <span className="modcard__badge">{t('chooser.soon')}</span>}
             </div>
-            <div className="modcard__title">{m.title}</div>
-            <div className="modcard__desc">{m.desc}</div>
+            <div className="modcard__title">{t(`chooser.module.${m.id}.title`)}</div>
+            <div className="modcard__desc">{t(`chooser.module.${m.id}.desc`)}</div>
             <div className="modcard__stat">
               {stat[m.id].value}
               <span className="modcard__stat-label">{stat[m.id].label}</span>

@@ -1,4 +1,5 @@
 import { FormulaError } from './ast'
+import { t } from '../../i18n'
 
 export type TokenType =
   | 'number'
@@ -61,7 +62,7 @@ export function tokenize(input: string): Token[] {
       i = j
       continue
     }
-    throw new FormulaError(`Неожиданный символ «${ch}»`, i)
+    throw new FormulaError(t('error.formula.unexpectedChar', { char: ch }), i)
   }
   tokens.push({ type: 'eof', value: '', pos: n })
   return tokens

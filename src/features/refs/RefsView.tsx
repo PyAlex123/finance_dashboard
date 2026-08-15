@@ -9,8 +9,13 @@ import {
 import { autoCode, isValidCode } from '../../domain/codes'
 import { formatMoney, parseMoney } from '../../domain/money'
 import type { Account, CategoryDirection, Currency } from '../../domain/types'
+import { t } from '../../i18n'
+import { useT } from '../../i18n/react'
 
-const DIR_LABEL: Record<CategoryDirection, string> = { in: 'Доход', out: 'Расход', transfer: 'Переброска' }
+// Функция, а не константа: подписи направлений зависят от языка.
+const dirLabels = (): Record<CategoryDirection, string> => ({
+  in: t('refs.dir.in'), out: t('refs.dir.out'), transfer: t('refs.dir.transfer'),
+})
 const CURRENCIES: Currency[] = ['UZS', 'USD']
 
 /** Поле кода: правится вручную, применяется по потере фокуса/Enter. */
@@ -20,7 +25,7 @@ function CodeCell({ code, onRename }: { code: string; onRename: (next: string) =
   function commit() {
     const next = draft.trim()
     if (next === code) return setErr('')
-    if (!isValidCode(next)) { setErr('латиница, цифры, _'); setDraft(code); return }
+    if (!isValidCode(next)) { setErr(t('refs.code.invalid')); setDraft(code); return }
     setErr('')
     onRename(next)
   }
@@ -39,6 +44,7 @@ function CodeCell({ code, onRename }: { code: string; onRename: (next: string) =
 }
 
 export default function RefsView() {
+  useT() // подписка на смену языка для всего экрана
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectAccounts)
   const categories = useAppSelector(selectCategories)
@@ -67,9 +73,9 @@ export default function RefsView() {
   return (
     <div className="refs">
       <section className="refs__section">
-        <h3>Счета</h3>
+        <h3>{t('refs.accounts')}</h3>
         <table className="refs__table">
-          <thead><tr><th>Код</th><th>Название</th><th>Валюта</th><th>Активен</th><th>Дубль в валюте</th><th></th></tr></thead>
+          <thead><tr><th>{t('common.code')}</th><th>{t('common.name')}</th><th>{t('common.currency')}</th><th>{t('refs.col.active')}</th><th>{t('refs.col.duplicate')}</th><th></th></tr></thead>
           <tbody>
             {[...accounts].sort((a, b) => a.order - b.order).map((a) => (
               <tr key={a.id}>
@@ -87,7 +93,7 @@ export default function RefsView() {
                 <td>
                   <input
                     type="checkbox"
-                    aria-label={`Активен ${a.name}`}
+                    aria-label={t('refs.account.active', { name: a.name })}
                     checked={a.active}
                     onChange={(e) => dispatch(upsertAccount({ ...a, active: e.target.checked }))}
                   />
@@ -97,7 +103,7 @@ export default function RefsView() {
                     <button
                       key={c}
                       className="btn btn--small"
-                      title={`Создать такой же счёт в ${c}`}
+                      title={t('refs.account.duplicate', { currency: c })}
                       onClick={() => duplicateInCurrency(a, c)}
                     >
                       + {c}
@@ -110,8 +116,8 @@ export default function RefsView() {
           </tbody>
         </table>
         <div className="refs__add">
-          <input placeholder="название счёта" value={accName} onChange={(e) => setAccName(e.target.value)} />
-          <select aria-label="Валюта нового счёта" value={accCur} onChange={(e) => setAccCur(e.target.value as Currency)}>
+          <input placeholder={t('refs.account.placeholder')} value={accName} onChange={(e) => setAccName(e.target.value)} />
+          <select aria-label={t('refs.account.currency')} value={accCur} onChange={(e) => setAccCur(e.target.value as Currency)}>
             {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <button
@@ -125,14 +131,14 @@ export default function RefsView() {
               }))
               setAccName('')
             }}
-          >Добавить счёт</button>
+          >{t('refs.account.add')}</button>
         </div>
       </section>
 
       <section className="refs__section">
-        <h3>Категории</h3>
+        <h3>{t('refs.categories')}</h3>
         <table className="refs__table">
-          <thead><tr><th>Код</th><th>Название</th><th>Направление</th><th></th></tr></thead>
+          <thead><tr><th>{t('common.code')}</th><th>{t('common.name')}</th><th>{t('refs.col.direction')}</th><th></th></tr></thead>
           <tbody>
             {[...categories].sort((a, b) => a.order - b.order).map((c) => (
               <tr key={c.id}>
@@ -146,16 +152,16 @@ export default function RefsView() {
                     onChange={(e) => dispatch(upsertCategory({ ...c, name: e.target.value }))}
                   />
                 </td>
-                <td>{DIR_LABEL[c.direction]}</td>
+                <td>{dirLabels()[c.direction]}</td>
                 <td><button className="btn btn--small btn--danger" onClick={() => dispatch(deleteCategory(c.id))}>✕</button></td>
               </tr>
             ))}
           </tbody>
         </table>
         <div className="refs__add">
-          <input placeholder="название категории" value={catName} onChange={(e) => setCatName(e.target.value)} />
-          <select aria-label="Направление новой категории" value={catDir} onChange={(e) => setCatDir(e.target.value as CategoryDirection)}>
-            <option value="in">Доход</option><option value="out">Расход</option><option value="transfer">Переброска</option>
+          <input placeholder={t('refs.category.placeholder')} value={catName} onChange={(e) => setCatName(e.target.value)} />
+          <select aria-label={t('refs.category.direction')} value={catDir} onChange={(e) => setCatDir(e.target.value as CategoryDirection)}>
+            <option value="in">{t('refs.dir.in')}</option><option value="out">{t('refs.dir.out')}</option><option value="transfer">{t('refs.dir.transfer')}</option>
           </select>
           <button
             className="btn btn--primary btn--small"
@@ -168,15 +174,15 @@ export default function RefsView() {
               }))
               setCatName('')
             }}
-          >Добавить категорию</button>
+          >{t('refs.category.add')}</button>
         </div>
       </section>
 
       <section className="refs__section">
-        <h3>Курсы валют</h3>
-        <p className="refs__hint">Курс — сколько сумов за 1 единицу валюты на дату. Отчёт пересчитывает валютные счета по курсу.</p>
+        <h3>{t('refs.rates')}</h3>
+        <p className="refs__hint">{t('refs.rates.hint')}</p>
         <table className="refs__table">
-          <thead><tr><th>Валюта</th><th>Дата</th><th>Курс</th><th></th></tr></thead>
+          <thead><tr><th>{t('common.currency')}</th><th>{t('common.date')}</th><th>{t('refs.col.rate')}</th><th></th></tr></thead>
           <tbody>
             {[...rates].sort((a, b) => (a.date < b.date ? -1 : 1)).map((r) => (
               <tr key={r.id}>
@@ -189,11 +195,11 @@ export default function RefsView() {
           </tbody>
         </table>
         <div className="refs__add">
-          <select aria-label="Валюта курса" value={rateCur} onChange={(e) => setRateCur(e.target.value as Currency)}>
+          <select aria-label={t('refs.rate.currency')} value={rateCur} onChange={(e) => setRateCur(e.target.value as Currency)}>
             {CURRENCIES.filter((c) => c !== 'UZS').map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <input aria-label="Дата курса" type="date" value={rateDate} onChange={(e) => setRateDate(e.target.value)} />
-          <input placeholder="курс, сум" value={rateValue} onChange={(e) => setRateValue(e.target.value)} />
+          <input aria-label={t('refs.rate.date')} type="date" value={rateDate} onChange={(e) => setRateDate(e.target.value)} />
+          <input placeholder={t('refs.rate.placeholder')} value={rateValue} onChange={(e) => setRateValue(e.target.value)} />
           <button
             className="btn btn--primary btn--small"
             disabled={!rateDate || !rateValue.trim()}
@@ -203,7 +209,7 @@ export default function RefsView() {
                 setRateValue('')
               } catch { /* некорректный курс — игнорируем */ }
             }}
-          >Добавить курс</button>
+          >{t('refs.rate.add')}</button>
         </div>
       </section>
     </div>

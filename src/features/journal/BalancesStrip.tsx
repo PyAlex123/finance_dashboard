@@ -5,8 +5,9 @@
 import { useAppSelector } from '../../store/hooks'
 import { selectAccountBalances, selectTotalBalance } from '../../store/reportSelectors'
 import { selectChecksOk } from '../../store/reportSelectors'
-import { formatMoney } from '../../domain/money'
+import { formatMoney, moneySuffix } from '../../domain/money'
 import { useViewMode } from '../shell/ViewMode'
+import { useT } from '../../i18n/react'
 import type { AccountBalance } from '../../store/reportSelectors'
 
 const CUR_SYMBOL: Record<string, string> = { USD: '$', UZS: '' }
@@ -18,6 +19,7 @@ function nativeText(b: AccountBalance): string {
 }
 
 export default function BalancesStrip() {
+  const t = useT()
   const balances = useAppSelector(selectAccountBalances)
   const total = useAppSelector(selectTotalBalance)
   const checksOk = useAppSelector(selectChecksOk)
@@ -43,7 +45,7 @@ export default function BalancesStrip() {
 
   return (
     <>
-      <div className="balances__eyebrow">Остатки по счетам</div>
+      <div className="balances__eyebrow">{t('balances.title')}</div>
       <div className="balances" style={gridStyle}>
         {balances.map((b) => (
           <div key={b.id} className="balances__card">
@@ -53,15 +55,15 @@ export default function BalancesStrip() {
             </div>
             <div className="balances__amount">{nativeText(b)}</div>
             {b.currency !== 'UZS' && (
-              <div className="balances__sub">≈ {formatMoney(b.base)} сум</div>
+              <div className="balances__sub">{t('balances.approx', { amount: formatMoney(b.base), currency: moneySuffix() })}</div>
             )}
           </div>
         ))}
         <div className="balances__card balances__card--total">
           <div className="balances__head balances__head--total">
-            Итого в UZS
+            {t('balances.total')}
             <span className={`balances__pill ${checksOk ? 'balances__pill--ok' : 'balances__pill--warn'}`}>
-              ● {checksOk ? 'сходится' : 'расхождение'}
+              ● {checksOk ? t('balances.ok') : t('balances.mismatch')}
             </span>
           </div>
           <div className="balances__amount balances__amount--total">{formatMoney(total)}</div>

@@ -1,4 +1,12 @@
 import '@testing-library/jest-dom/vitest'
+import { afterEach } from 'vitest'
+import { setLocaleForTests } from '../i18n/locale'
+
+// Локаль тестов жёстко русская: существующие тесты проверяют русские подписи и
+// остаются эталоном поведения. Сброс после каждого теста обязателен — без него
+// тест переключения языка утечёт локалью 'en' в следующий файл того же воркера.
+setLocaleForTests('ru')
+afterEach(() => setLocaleForTests('ru'))
 
 // jsdom не реализует scrollTo (его зовёт переход между страницами) — тихая заглушка.
 if (typeof window !== 'undefined') {

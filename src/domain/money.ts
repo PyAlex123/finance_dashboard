@@ -1,6 +1,8 @@
 // Деньги — целые минорные единицы (тийины) в BigInt. Никаких float. Никогда.
 // 1 сум = 100 тийин. Хранение — bigint минорных единиц; ввод/вывод — в сумах.
 
+import { t, type Locale } from '../i18n'
+
 export type Money = bigint
 
 export const MINOR_PER_MAJOR = 100n
@@ -9,7 +11,7 @@ export const MINOR_PER_MAJOR = 100n
 export function fromMajor(major: number | string | bigint): Money {
   if (typeof major === 'bigint') return major * MINOR_PER_MAJOR
   if (typeof major === 'number') {
-    if (!Number.isFinite(major)) throw new Error(`Некорректная сумма: ${major}`)
+    if (!Number.isFinite(major)) throw new Error(t('error.money.amount', { value: major }))
     // округление до целых тийинов без накопления float-погрешности
     return BigInt(Math.round(major * 100))
   }
@@ -24,7 +26,7 @@ export function parseMoney(input: string): Money {
   const body = neg ? s.slice(1) : s
   const [intPart, fracRaw = ''] = body.split('.')
   if (!/^\d*$/.test(intPart) || !/^\d*$/.test(fracRaw)) {
-    throw new Error(`Некорректная сумма: "${input}"`)
+    throw new Error(t('error.money.input', { value: input }))
   }
   const frac = (fracRaw + '00').slice(0, 2)
   const minor = BigInt(intPart || '0') * MINOR_PER_MAJOR + BigInt(frac || '0')
@@ -56,20 +58,33 @@ export function groupThousands(raw: string): string {
   return (neg ? '-' : '') + out
 }
 
-/** Форматирование в сумы с разделителями разрядов. */
+/**
+ * Форматирование в сумы с разделителями разрядов.
+ *
+ * По локали меняется только десятичный разделитель. Тонкий пробел между
+ * разрядами и настоящий минус U+2212 одинаковы во всех языках: это типографика
+ * дизайн-системы, а не национальный формат. Тонкий пробел вдобавок безопасен —
+ * parseMoney вырезает любые пробелы, поэтому вывод всегда разбирается обратно.
+ */
 export function formatMoney(
   m: Money,
-  opts: { sign?: boolean; suffix?: string } = {},
+  opts: { sign?: boolean; suffix?: string; locale?: Locale } = {},
 ): string {
   const neg = m < 0n
   const abs = neg ? -m : m
   const intPart = abs / MINOR_PER_MAJOR
   const frac = abs % MINOR_PER_MAJOR
   const intStr = intPart.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
-  const fracStr = frac === 0n ? '' : ',' + frac.toString().padStart(2, '0')
+  const sep = t('money.decimalSep', undefined, opts.locale)
+  const fracStr = frac === 0n ? '' : sep + frac.toString().padStart(2, '0')
   const sign = neg ? '−' : opts.sign ? '+' : ''
   const suffix = opts.suffix ? ' ' + opts.suffix : ''
   return `${sign}${intStr}${fracStr}${suffix}`
+}
+
+/** Название базовой валюты на текущем языке: «сум» / «sum» / «soʻm». */
+export function moneySuffix(locale?: Locale): string {
+  return t('money.suffix', undefined, locale)
 }
 
 export const zero: Money = 0n

@@ -4,10 +4,11 @@ import type { ColDef, ValueFormatterParams, ValueSetterParams } from 'ag-grid-co
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectActiveAccounts, selectCategories } from '../../store/selectors'
 import { updateOperation } from '../../store/dataSlice'
-import { selectJournalRows, TYPE_LABEL, type JournalRow } from './journalRows'
+import { selectJournalRows, typeLabels, typeFromLabel, type JournalRow } from './journalRows'
 import { buildOperationUpdate, formatDateLabel, todayIso, type RowPatch, type RowSnapshot } from './rowEdit'
 import { formatMoney, parseMoney, type Money } from '../../domain/money'
 import { CategoryCellEditor, DateCellEditor, MoneyCellEditor } from './cellEditors'
+import { useLocale, useT } from '../../i18n/react'
 import type { Account, OperationType } from '../../domain/types'
 
 // Переброски тонируем слейт-синим (как в эталоне); приход/расход — белые строки,
@@ -17,10 +18,6 @@ const ROW_TINT: Record<string, string> = {
   expense: 'transparent',
   transfer: 'rgba(74,107,132,0.10)',
 }
-
-const TYPE_BY_LABEL = new Map<string, OperationType>(
-  (Object.keys(TYPE_LABEL) as OperationType[]).map((t) => [TYPE_LABEL[t], t]),
-)
 
 function moneyFormatter(p: ValueFormatterParams<JournalRow, Money>) {
   const v = p.value
@@ -53,6 +50,11 @@ export default function JournalGrid({
   onDelete?: (id: string) => void
   typeFilter?: OperationType | 'all'
 }) {
+  const t = useT()
+  // Локаль в зависимостях useMemo ниже: колонки ag-grid пересобираются при смене
+  // языка, иначе заголовки и список значений в редакторе «Тип» остались бы
+  // прежними до следующей правки данных.
+  const locale = useLocale()
   const dispatch = useAppDispatch()
   const accounts = useAppSelector(selectActiveAccounts)
   const categories = useAppSelector(selectCategories)
@@ -71,9 +73,9 @@ export default function JournalGrid({
     const nameById = new Map(categories.map((c) => [c.id, c.name]))
 
     const base: ColDef<JournalRow>[] = [
-      { field: 'index', headerName: '№', width: 60, pinned: 'left', editable: false },
+      { field: 'index', headerName: t('journal.col.index'), width: 60, pinned: 'left', editable: false },
       {
-        field: 'date', headerName: 'Дата', width: 130, pinned: 'left',
+        field: 'date', headerName: t('journal.col.date'), width: 130, pinned: 'left',
         cellEditor: DateCellEditor,
         // сегодняшняя дата показывается словом «Сегодня» прямо в ячейке
         valueFormatter: (p) => formatDateLabel(String(p.value ?? '')),
@@ -82,21 +84,21 @@ export default function JournalGrid({
           edit(p.data, { date: String(p.newValue ?? '').trim() || p.data.date }),
       },
       {
-        field: 'typeLabel', headerName: 'Тип', width: 150, pinned: 'left',
+        field: 'typeLabel', headerName: t('journal.col.type'), width: 150, pinned: 'left',
         cellEditor: 'agSelectCellEditor',
-        cellEditorParams: { values: Object.values(TYPE_LABEL) },
+        cellEditorParams: { values: Object.values(typeLabels(locale)) },
         valueSetter: (p: ValueSetterParams<JournalRow>) => {
-          const type = TYPE_BY_LABEL.get(String(p.newValue))
+          const type = typeFromLabel(String(p.newValue))
           return type ? edit(p.data, { type }) : false
         },
       },
       {
-        field: 'description', headerName: 'Описание', width: 260, pinned: 'left',
+        field: 'description', headerName: t('journal.col.description'), width: 260, pinned: 'left',
         valueSetter: (p: ValueSetterParams<JournalRow>) =>
           edit(p.data, { description: String(p.newValue ?? '') }),
       },
       {
-        field: 'categoryId', headerName: 'Категория', width: 180,
+        field: 'categoryId', headerName: t('journal.col.category'), width: 180,
         cellEditor: CategoryCellEditor,
         valueFormatter: (p) => (p.value ? nameById.get(String(p.value)) ?? '' : ''),
         valueSetter: (p: ValueSetterParams<JournalRow>) =>
@@ -140,14 +142,14 @@ export default function JournalGrid({
           <span className="journal__actions">
             <button
               className="btn btn--small"
-              title="Изменить операцию"
+              title={t('journal.row.edit')}
               onClick={() => onEdit?.(p.data!.id)}
             >
               ✎
             </button>
             <button
               className="btn btn--small btn--danger"
-              title="Удалить операцию"
+              title={t('journal.row.delete')}
               onClick={() => onDelete?.(p.data!.id)}
             >
               ✕
@@ -160,13 +162,13 @@ export default function JournalGrid({
       ...base,
       ...accCols,
       {
-        field: 'note', headerName: 'Примечание', width: 200,
+        field: 'note', headerName: t('journal.col.note'), width: 200,
         valueSetter: (p: ValueSetterParams<JournalRow>) =>
           edit(p.data, { note: String(p.newValue ?? '') }),
       },
       actions,
     ]
-  }, [accounts, categories, dispatch, onEdit, onDelete])
+  }, [accounts, categories, dispatch, onEdit, onDelete, t, locale])
 
   return (
     <div className="ag-theme-quartz" style={{ height: '100%', width: '100%' }}>
@@ -178,7 +180,7 @@ export default function JournalGrid({
           p.data ? { background: ROW_TINT[p.data.type] ?? undefined } : undefined
         }
         defaultColDef={{ resizable: true, sortable: true, editable: true }}
-        overlayNoRowsTemplate="Журнал пуст — нажмите «Сегодня», чтобы добавить запись"
+        overlayNoRowsTemplate={t('journal.empty')}
         stopEditingWhenCellsLoseFocus
       />
     </div>

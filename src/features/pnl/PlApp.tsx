@@ -6,16 +6,21 @@ import { buildPlExample } from '../../data/plExample'
 import PlReport from './PlReport'
 import TemplateEditor from '../template/TemplateEditor'
 import ImportWizard from '../import/ImportWizard'
+import LangSwitch from '../ui/LangSwitch'
+import { useT } from '../../i18n/react'
+import type { Key } from '../../i18n'
 import type { AppProps } from '../../App'
 
 type Tab = 'report' | 'template'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'report', label: 'Отчёт P&L' },
-  { id: 'template', label: 'Шаблон' },
+// Ключи, а не подписи: массив вычисляется при импорте модуля — см. src/App.tsx.
+const TABS: { id: Tab; labelKey: Key }[] = [
+  { id: 'report', labelKey: 'pl.tab.report' },
+  { id: 'template', labelKey: 'app.tab.template' },
 ]
 
 export default function PlApp({ username, onBack, onLogout }: AppProps = {}) {
+  const t = useT()
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
   const [tab, setTab] = useState<Tab>('report')
@@ -35,35 +40,36 @@ export default function PlApp({ username, onBack, onLogout }: AppProps = {}) {
       <header className="app__header">
         <div className="app__headleft">
           {onBack && (
-            <button className="btn btn--small app__back" onClick={onBack} title="К выбору отчёта">← Модули</button>
+            <button className="btn btn--small app__back" onClick={onBack} title={t('app.back.title')}>{t('app.back')}</button>
           )}
           <div>
-            <h1 className="app__title">P&L — прибыли и убытки</h1>
-            <p className="app__subtitle">Отчёт по начислению</p>
+            <h1 className="app__title">{t('app.title.pl')}</h1>
+            <p className="app__subtitle">{t('pl.subtitle')}</p>
           </div>
         </div>
         <div className="app__headright">
           <div className="datamenu">
-            <button className="btn btn--small" onClick={() => fileRef.current?.click()}>Импорт из Excel…</button>
-            <button className="btn btn--small" onClick={loadExample}>Загрузить пример</button>
+            <button className="btn btn--small" onClick={() => fileRef.current?.click()}>{t('pl.import')}</button>
+            <button className="btn btn--small" onClick={loadExample}>{t('common.loadExample')}</button>
             {hasPl && (
               <button
                 className="btn btn--small"
-                onClick={() => { if (confirm('Очистить P&L до чистого листа?')) dispatch(clearForm('pl')) }}
+                onClick={() => { if (confirm(t('pl.clear.confirm'))) dispatch(clearForm('pl')) }}
               >
-                Очистить P&L
+                {t('pl.clear')}
               </button>
             )}
           </div>
+          <LangSwitch />
           {username && <span className="app__user">👤 {username}</span>}
-          {onLogout && <button className="btn btn--small" onClick={onLogout}>Выйти</button>}
+          {onLogout && <button className="btn btn--small" onClick={onLogout}>{t('app.logout')}</button>}
         </div>
       </header>
 
       <nav className="tabs">
-        {TABS.map((t) => (
-          <button key={t.id} className={`tab ${tab === t.id ? 'tab--active' : ''}`} onClick={() => setTab(t.id)}>
-            {t.label}
+        {TABS.map((tab_) => (
+          <button key={tab_.id} className={`tab ${tab === tab_.id ? 'tab--active' : ''}`} onClick={() => setTab(tab_.id)}>
+            {t(tab_.labelKey)}
           </button>
         ))}
       </nav>

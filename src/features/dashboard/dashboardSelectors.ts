@@ -3,10 +3,11 @@
 // категориям (донат), динамика остатка главного счёта.
 
 import { createSelector } from '@reduxjs/toolkit'
-import { selectData } from '../../store/selectors'
+import { selectData, selectLocale } from '../../store/selectors'
 import { buildAggContext, aggValue } from '../../engine/aggregate'
 import { toMajorNumber, type Money } from '../../domain/money'
 import { derivePeriods, formatPeriod } from '../../engine/periods'
+import { t, type Locale } from '../../i18n'
 import type { DataSnapshot } from '../../domain/types'
 
 export interface ExpenseSlice {
@@ -40,7 +41,7 @@ const EMPTY: DashboardData = {
  * Данные дашборда — чистая функция от снимка (для экрана и Excel-экспорта).
  * Периоды и активные счета выводит сама (как selectPeriods/selectActiveAccounts).
  */
-export function computeDashboard(data: DataSnapshot): DashboardData {
+export function computeDashboard(data: DataSnapshot, locale?: Locale): DashboardData {
   const accounts = data.accounts.filter((a) => a.active).sort((a, b) => a.order - b.order)
   const periods = derivePeriods(data.operations)
   {
@@ -72,7 +73,8 @@ export function computeDashboard(data: DataSnapshot): DashboardData {
     const TOP = 5
     const top = catSums.slice(0, TOP)
     const restAmount = catSums.slice(TOP).reduce((s, c) => s + c.amount, 0n)
-    const sliceList = restAmount > 0n ? [...top, { name: 'Прочее', amount: restAmount }] : top
+    const sliceList =
+      restAmount > 0n ? [...top, { name: t('dashboard.other', undefined, locale), amount: restAmount }] : top
     const denom = Number(totalOut) || 1
     const expenses: ExpenseSlice[] = sliceList.map((c) => ({
       name: c.name, amount: c.amount, share: Number(c.amount) / denom,
@@ -95,7 +97,7 @@ export function computeDashboard(data: DataSnapshot): DashboardData {
 
     return {
       periods,
-      monthLabels: periods.map((p) => formatPeriod(p)),
+      monthLabels: periods.map((p) => formatPeriod(p, { locale })),
       inByPeriod: inByP.map(toMajorNumber),
       outByPeriod: outByP.map(toMajorNumber),
       resultByPeriod: resultByP.map(toMajorNumber),
@@ -108,4 +110,5 @@ export function computeDashboard(data: DataSnapshot): DashboardData {
   }
 }
 
-export const selectDashboard = createSelector([selectData], computeDashboard)
+// Локаль во входах: подписи месяцев и срез «Прочее» порождает сам селектор.
+export const selectDashboard = createSelector([selectData, selectLocale], computeDashboard)

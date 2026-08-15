@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BRAND_TAGLINE } from '../../brand'
+import { useT } from '../../i18n/react'
+import LangSwitch from '../ui/LangSwitch'
 import { href, linkHandler } from '../../routes'
 import {
   API_URL, REMOTE, connectGoogle, fetchPublicConfig,
@@ -44,6 +45,7 @@ const telegramLoginUrl = () => `${API_URL.replace(/\/+$/, '')}/api/auth/telegram
 // Google: официальная кнопка Identity Services лежит прозрачным слоем поверх нашей
 // (её разметку менять нельзя), ID-токен проверяет сервер.
 export default function LoginScreen({ onLogin, onSession }: LoginScreenProps) {
+  const t = useT()
   const [config, setConfig] = useState<PublicConfig | null>(null)
   const [ready, setReady] = useState(!REMOTE) // конфиг загружен (или не нужен)
   const [error, setError] = useState<string | null>(null)
@@ -62,7 +64,7 @@ export default function LoginScreen({ onLogin, onSession }: LoginScreenProps) {
     const check = () => {
       const reason = new URLSearchParams(window.location.search).get('error')
       if (reason === 'auth_expired') {
-        setError('Ссылка для входа устарела. Войдите заново через Telegram.')
+        setError(t('login.error.expired'))
       }
     }
     check()
@@ -101,7 +103,7 @@ export default function LoginScreen({ onLogin, onSession }: LoginScreenProps) {
             if (!credential) return
             const session = await connectGoogle(credential)
             if (!session) {
-              setError('Сервер не принял вход через Google. Попробуйте ещё раз.')
+              setError(t('login.error.google'))
               return
             }
             enter(session)
@@ -142,27 +144,27 @@ export default function LoginScreen({ onLogin, onSession }: LoginScreenProps) {
         <a className="lp-login__logo" href={href('/')} onClick={linkHandler('/')}>
           <FinloLockup className="lp-login__svg" />
         </a>
-        <h1 className="lp-login__title">Войдите, чтобы продолжить</h1>
-        <p className="lp-login__sub">{BRAND_TAGLINE}</p>
+        <h1 className="lp-login__title">{t('login.heading')}</h1>
+        <p className="lp-login__sub">{t('brand.tagline')}</p>
 
         <div className="lp-login__buttons">
           {tgReady ? (
             <a className="lp-login__btn lp-login__btn--tg" href={telegramLoginUrl()}>
               <TelegramIcon />
-              Войти через Telegram
+              {t('login.telegram.btn')}
             </a>
           ) : (
             <button className="lp-login__btn lp-login__btn--tg" type="button" disabled>
               <TelegramIcon />
-              Войти через Telegram
+              {t('login.telegram.btn')}
             </button>
           )}
 
           <div className="lp-login__google">
             <button className="lp-login__btn lp-login__btn--google" type="button" disabled={!googleReady}>
               <GoogleIcon />
-              Войти через Google
-              {!googleReady && <span className="lp-login__soon">скоро</span>}
+              {t('login.google.btn')}
+              {!googleReady && <span className="lp-login__soon">{t('login.google.soon')}</span>}
             </button>
             {/* Официальную кнопку Google перерисовывать нельзя — кладём её
                 прозрачным слоем поверх нашей, клик достаётся ей. */}
@@ -170,12 +172,12 @@ export default function LoginScreen({ onLogin, onSession }: LoginScreenProps) {
           </div>
         </div>
 
-        <p className="lp-login__hint">Впервые здесь? Вход и регистрация — одной кнопкой.</p>
+        <p className="lp-login__hint">{t('login.hint')}</p>
         {error && <p className="lp-login__error">{error}</p>}
 
         {!tgReady && !googleReady && !byName && (
           <p className="lp-login__fallback">
-            <button type="button" onClick={() => setByName(true)}>Войти по имени</button>
+            <button type="button" onClick={() => setByName(true)}>{t('login.byName')}</button>
           </p>
         )}
         {byName && (
@@ -184,19 +186,23 @@ export default function LoginScreen({ onLogin, onSession }: LoginScreenProps) {
               className="lp-login__input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Юзернейм"
-              aria-label="Юзернейм"
+              placeholder={t('login.username')}
+              aria-label={t('login.username')}
               autoFocus
             />
             <button className="lp-login__btn lp-login__btn--tg" type="submit" disabled={!trimmed}>
-              Войти
+              {t('login.submit')}
             </button>
           </form>
         )}
 
+        {/* Переключатель нужен и здесь: по ссылке из Telegram-бота пользователь
+            попадает сразу на вход, минуя лендинг. */}
+        <LangSwitch className="lp-login__lang" />
+
         <div className="lp-login__links">
-          <a href={href('/privacy')} onClick={linkHandler('/privacy')}>Политика конфиденциальности</a>
-          <a href={href('/terms')} onClick={linkHandler('/terms')}>Условия использования</a>
+          <a href={href('/privacy')} onClick={linkHandler('/privacy')}>{t('lp.footer.privacy')}</a>
+          <a href={href('/terms')} onClick={linkHandler('/terms')}>{t('lp.footer.terms')}</a>
         </div>
       </main>
     </div>

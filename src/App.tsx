@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { Key } from './i18n'
 import { useAppDispatch } from './store/hooks'
 import { ensureDefaultAccounts } from './store/dataSlice'
 import JournalPanel from './features/journal/JournalPanel'
@@ -9,17 +10,21 @@ import TemplateEditor from './features/template/TemplateEditor'
 import DataMenu from './features/data/DataMenu'
 import ProfileBadge from './features/session/ProfileBadge'
 import ReportSwitcher from './features/reports/ReportSwitcher'
+import LangSwitch from './features/ui/LangSwitch'
+import { useT } from './i18n/react'
 import { REMOTE, getSession } from './data/backend'
 import { useConnectivity } from './data/connectivity'
 
 type Tab = 'journal' | 'report' | 'dashboard' | 'template' | 'refs'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'journal', label: 'Журнал' },
-  { id: 'report', label: 'Отчёт ДДС' },
-  { id: 'dashboard', label: 'Дашборд' },
-  { id: 'template', label: 'Шаблон' },
-  { id: 'refs', label: 'Справочники' },
+// Список ключей, а не подписей: массив вычисляется при импорте модуля, и
+// готовые строки в нём навсегда застыли бы на языке первого рендера.
+const TABS: { id: Tab; labelKey: Key }[] = [
+  { id: 'journal', labelKey: 'app.tab.journal' },
+  { id: 'report', labelKey: 'app.tab.report' },
+  { id: 'dashboard', labelKey: 'app.tab.dashboard' },
+  { id: 'template', labelKey: 'app.tab.template' },
+  { id: 'refs', labelKey: 'app.tab.refs' },
 ]
 
 export interface AppProps {
@@ -31,6 +36,7 @@ export interface AppProps {
 
 // Рабочая область ДДС (вкладки). Оборачивается Shell (вход/выбор модуля).
 export default function App({ username, photoUrl, onBack, onLogout }: AppProps = {}) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>('journal')
   const [dataMenuOpen, setDataMenuOpen] = useState(false)
   const dispatch = useAppDispatch()
@@ -50,19 +56,19 @@ export default function App({ username, photoUrl, onBack, onLogout }: AppProps =
         <header className="app__header">
           <div className="app__headleft">
             {onBack && (
-              <button className="btn btn--small app__back" onClick={onBack} title="К выбору отчёта">
-                ← Модули
+              <button className="btn btn--small app__back" onClick={onBack} title={t('app.back.title')}>
+                {t('app.back')}
               </button>
             )}
             <div>
-              <h1 className="app__title">ДДС — движение денежных средств</h1>
-              <p className="app__subtitle">Рабочая область</p>
+              <h1 className="app__title">{t('app.title.cf')}</h1>
+              <p className="app__subtitle">{t('app.subtitle')}</p>
             </div>
           </div>
           <div className="app__headright">
             {REMOTE && !online && (
-              <span className="offline-pill" title="Сервер недоступен — данные сохраняются локально">
-                ● офлайн
+              <span className="offline-pill" title={t('app.offline.title')}>
+                {t('app.offline')}
               </span>
             )}
             <DataMenu
@@ -70,8 +76,9 @@ export default function App({ username, photoUrl, onBack, onLogout }: AppProps =
               onToggle={() => setDataMenuOpen((v) => !v)}
               onClose={() => setDataMenuOpen(false)}
             />
+            <LangSwitch />
             {username && <ProfileBadge name={username} photoUrl={photoUrl} />}
-            {onLogout && <button className="btn btn--small" onClick={onLogout}>Выйти</button>}
+            {onLogout && <button className="btn btn--small" onClick={onLogout}>{t('app.logout')}</button>}
           </div>
         </header>
 
@@ -79,20 +86,20 @@ export default function App({ username, photoUrl, onBack, onLogout }: AppProps =
           <div className="app__reportbar">
             <ReportSwitcher
               form="cf"
-              defaultName="Отчёт ДДС"
+              defaultName={t('seed.report.defaultName.cf')}
               onAfterConnect={() => dispatch(ensureDefaultAccounts())}
             />
           </div>
         )}
 
         <nav className="tabs">
-          {TABS.map((t) => (
+          {TABS.map((tab_) => (
             <button
-              key={t.id}
-              className={`tab ${tab === t.id ? 'tab--active' : ''}`}
-              onClick={() => setTab(t.id)}
+              key={tab_.id}
+              className={`tab ${tab === tab_.id ? 'tab--active' : ''}`}
+              onClick={() => setTab(tab_.id)}
             >
-              {t.label}
+              {t(tab_.labelKey)}
             </button>
           ))}
         </nav>

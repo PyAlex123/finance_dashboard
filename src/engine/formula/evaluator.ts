@@ -3,6 +3,7 @@
 // деньги / скаляр; деньги / деньги → скаляр. Всё точно, без float.
 
 import { FormulaError, type Node } from './ast'
+import { t } from '../../i18n'
 import type { Money } from '../../domain/money'
 import type { PeriodKey } from '../../domain/types'
 
@@ -49,7 +50,7 @@ function asMoney(val: Value): Money {
   if (val.kind === 'money') return val.v
   // целочисленный скаляр → деньги как минорные единицы (редкий случай)
   if (val.den === 1n) return val.num
-  throw new FormulaError('Ожидалась денежная величина, получен дробный скаляр')
+  throw new FormulaError(t('error.formula.needMoney'))
 }
 
 export function evaluate(node: Node, ctx: EvalCtx): Value {
@@ -59,13 +60,13 @@ export function evaluate(node: Node, ctx: EvalCtx): Value {
 
     case 'ref': {
       const arr = ctx.resolved.get(node.code)
-      if (!arr) throw new FormulaError(`Неизвестная ссылка на статью «${node.code}»`)
+      if (!arr) throw new FormulaError(t('error.formula.unknownRef', { code: node.code }))
       return money(arr[ctx.periodIndex] ?? 0n)
     }
 
     case 'children': {
       // отдельно узел children не вычисляется (только внутри SUM)
-      throw new FormulaError('«children» допустимо только как аргумент SUM')
+      throw new FormulaError(t('error.formula.childrenOutsideSum'))
     }
 
     case 'unary': {
@@ -91,28 +92,28 @@ function evalBinary(op: '+' | '-' | '*' | '/', a: Value, b: Value): Value {
       const num = op === '+' ? a.num * b.den + b.num * a.den : a.num * b.den - b.num * a.den
       return scalar(num, a.den * b.den)
     }
-    throw new FormulaError('Нельзя складывать деньги и скаляр')
+    throw new FormulaError(t('error.formula.addMoneyScalar'))
   }
   if (op === '*') {
     if (a.kind === 'money' && b.kind === 'scalar') return money(roundDiv(a.v * b.num, b.den))
     if (a.kind === 'scalar' && b.kind === 'money') return money(roundDiv(b.v * a.num, a.den))
     if (a.kind === 'scalar' && b.kind === 'scalar') return scalar(a.num * b.num, a.den * b.den)
-    throw new FormulaError('Нельзя перемножать две денежные величины')
+    throw new FormulaError(t('error.formula.mulMoneyMoney'))
   }
   // '/'
   if (a.kind === 'money' && b.kind === 'scalar') {
-    if (b.num === 0n) throw new FormulaError('Деление на ноль')
+    if (b.num === 0n) throw new FormulaError(t('error.formula.divZero'))
     return money(roundDiv(a.v * b.den, b.num))
   }
   if (a.kind === 'money' && b.kind === 'money') {
-    if (b.v === 0n) throw new FormulaError('Деление на ноль')
+    if (b.v === 0n) throw new FormulaError(t('error.formula.divZero'))
     return scalar(a.v, b.v) // отношение денег → скаляр
   }
   if (a.kind === 'scalar' && b.kind === 'scalar') {
-    if (b.num === 0n) throw new FormulaError('Деление на ноль')
+    if (b.num === 0n) throw new FormulaError(t('error.formula.divZero'))
     return scalar(a.num * b.den, a.den * b.num)
   }
-  throw new FormulaError('Некорректное деление скаляра на деньги')
+  throw new FormulaError(t('error.formula.divScalarByMoney'))
 }
 
 function evalCall(node: Extract<Node, { type: 'call' }>, ctx: EvalCtx): Value {

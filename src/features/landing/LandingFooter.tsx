@@ -1,9 +1,13 @@
-import { BRAND, BRAND_TAGLINE } from '../../brand'
+import { BRAND } from '../../brand'
 import { href, linkHandler } from '../../routes'
 import { FinloLockup } from './Logo'
+import { useT } from '../../i18n/react'
 
 export default function LandingFooter({ loggedIn }: { loggedIn?: boolean }) {
-  const enter = loggedIn ? { path: '/app', label: 'Открыть кабинет' } : { path: '/login', label: 'Войти' }
+  const t = useT()
+  const enter = loggedIn
+    ? { path: '/app', label: t('lp.enter.app') }
+    : { path: '/login', label: t('lp.enter.login') }
 
   return (
     <footer className="lp-footer">
@@ -12,31 +16,31 @@ export default function LandingFooter({ loggedIn }: { loggedIn?: boolean }) {
           <div className="lp-footer__logo">
             <FinloLockup tone="paper" className="lp-footer__svg" />
           </div>
-          <p className="lp-footer__desc">{BRAND_TAGLINE}</p>
+          <p className="lp-footer__desc">{t('brand.tagline')}</p>
         </div>
 
         <div className="lp-footer__col">
-          <p className="lp-footer__col-title">Продукт</p>
-          <a href="#features">Возможности</a>
-          <a href="#how">Как работает</a>
+          <p className="lp-footer__col-title">{t('lp.footer.product')}</p>
+          <a href="#features">{t('lp.nav.features')}</a>
+          <a href="#how">{t('lp.nav.how')}</a>
           <a href={href(enter.path)} onClick={linkHandler(enter.path)}>{enter.label}</a>
         </div>
 
         <div className="lp-footer__col">
-          <p className="lp-footer__col-title">Обучение</p>
-          <a href="#learn">Прибыль и деньги</a>
-          <a href="#learn">Что такое ДДС</a>
-          <a href="#learn">Как читать баланс</a>
+          <p className="lp-footer__col-title">{t('lp.footer.learn')}</p>
+          <a href="#learn">{t('lp.footer.learn.1')}</a>
+          <a href="#learn">{t('lp.footer.learn.2')}</a>
+          <a href="#learn">{t('lp.footer.learn.3')}</a>
         </div>
 
         <div className="lp-footer__col">
-          <p className="lp-footer__col-title">Правовое</p>
-          <a href={href('/privacy')} onClick={linkHandler('/privacy')}>Политика конфиденциальности</a>
-          <a href={href('/terms')} onClick={linkHandler('/terms')}>Условия использования</a>
-          <a href="mailto:hello@example.uz">Контакты</a>
+          <p className="lp-footer__col-title">{t('lp.footer.legal')}</p>
+          <a href={href('/privacy')} onClick={linkHandler('/privacy')}>{t('lp.footer.privacy')}</a>
+          <a href={href('/terms')} onClick={linkHandler('/terms')}>{t('lp.footer.terms')}</a>
+          <a href="mailto:hello@example.uz">{t('lp.footer.contacts')}</a>
         </div>
       </div>
-      <div className="lp-footer__bottom">© 2026 {BRAND}. Сделано в Узбекистане.</div>
+      <div className="lp-footer__bottom">{t('lp.footer.bottom', { brand: BRAND })}</div>
     </footer>
   )
 }

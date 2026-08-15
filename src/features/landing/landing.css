@@ -343,3 +343,15 @@ html { scroll-behavior: smooth; scroll-padding-top: 92px; }
     animation-duration: .001ms !important; transition-duration: .001ms !important;
   }
 }
+
+/* --- Переключатель языка на публичных страницах ---------------------------- */
+/* Стоит перед кнопками входа, чтобы не сдвигать главные CTA от правого края.
+   Мобильная копия живёт внутри .lp-menu и прячется вместе с бургером. */
+.lp-langswitch { margin-right: 4px; }
+.lp-langswitch--menu { margin: 8px 0 0; align-self: flex-start; }
+.lp-login__lang { display: flex; justify-content: center; margin: 16px auto 0; }
+
+@media (max-width: 860px) {
+  /* На узких экранах десктопная копия скрыта — её роль играет копия в меню. */
+  .lp-bar__actions > .lp-langswitch { display: none; }
+}

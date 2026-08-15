@@ -8,6 +8,7 @@
 import type { DataSnapshot } from '../domain/types'
 import type { Repository } from './repository'
 import { bigintReplacer, bigintReviver } from './json'
+import { t } from '../i18n'
 
 function endpoint(baseUrl: string, workspace: string): string {
   const base = baseUrl.replace(/\/+$/, '')
@@ -26,7 +27,7 @@ export function createApiRepo(baseUrl: string, workspace: string, token?: string
     async load() {
       const res = await fetch(url, { headers: headers() })
       if (res.status === 404) return null
-      if (!res.ok) throw new Error(`Сервер вернул ${res.status} при загрузке`)
+      if (!res.ok) throw new Error(t('net.error.load', { status: res.status }))
       const text = await res.text()
       if (!text) return null
       // Тело: { data: <снимок с тегами $bigint> }
@@ -40,11 +41,11 @@ export function createApiRepo(baseUrl: string, workspace: string, token?: string
         headers: headers({ 'Content-Type': 'application/json' }),
         body,
       })
-      if (!res.ok) throw new Error(`Сервер вернул ${res.status} при сохранении`)
+      if (!res.ok) throw new Error(t('net.error.save', { status: res.status }))
     },
     async clear() {
       const res = await fetch(url, { method: 'DELETE', headers: headers() })
-      if (!res.ok && res.status !== 404) throw new Error(`Сервер вернул ${res.status} при очистке`)
+      if (!res.ok && res.status !== 404) throw new Error(t('net.error.clear', { status: res.status }))
     },
   }
 }

@@ -2,7 +2,7 @@
 
 import type { CellValue, Item, PeriodKey } from '../domain/types'
 import { fromMajor } from '../domain/money'
-import { PL_ITEMS } from './plTemplate'
+import { buildPlItems } from './plTemplate'
 
 export const PL_PERIODS: PeriodKey[] = ['2025-01', '2025-02', '2025-03']
 
@@ -33,7 +33,7 @@ export function buildPlExampleCells(): CellValue[] {
 /** Полный учебный набор P&L: статьи шаблона + периоды + значения. */
 export function buildPlExample(): { items: Item[]; periods: PeriodKey[]; cellValues: CellValue[] } {
   return {
-    items: structuredClone(PL_ITEMS),
+    items: buildPlItems(),
     periods: [...PL_PERIODS],
     cellValues: buildPlExampleCells(),
   }

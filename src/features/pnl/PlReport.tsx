@@ -5,15 +5,18 @@ import { setCellValue, deleteCellValue, addPeriod, removePeriod, seedItems } fro
 import { rowTotal, type ReportRow } from '../../engine/report'
 import { formatPeriod } from '../../engine/periods'
 import { formatMoney, parseMoney, toMajorNumber, type Money } from '../../domain/money'
-import { PL_ITEMS } from '../../data/plTemplate'
+import { buildPlItems } from '../../data/plTemplate'
 import { buildPlExample } from '../../data/plExample'
+import { t } from '../../i18n'
+import { useT } from '../../i18n/react'
 
 function fmt(v: Money | null): { text: string; neg: boolean } {
   if (v === null) return { text: '', neg: false }
-  return { text: v === 0n ? '—' : formatMoney(v), neg: v < 0n }
+  return { text: v === 0n ? t('common.dash') : formatMoney(v), neg: v < 0n }
 }
 
 export default function PlReport() {
+  useT() // подписка на смену языка для всего экрана
   const dispatch = useAppDispatch()
   const data = useAppSelector(selectData)
   const report = useAppSelector(selectPlReport)
@@ -28,28 +31,28 @@ export default function PlReport() {
   const revTotal = revTotalRow ? rowTotal(revTotalRow) : null
 
   function addMonth() {
-    const p = prompt('Добавить период (ГГГГ-ММ), например 2025-04:')
+    const p = prompt(t('plreport.addPeriod.prompt'))
     if (p && /^\d{4}-(0[1-9]|1[0-2])$/.test(p.trim())) dispatch(addPeriod(p.trim()))
-    else if (p) alert('Формат периода: ГГГГ-ММ (год обязателен)')
+    else if (p) alert(t('plreport.addPeriod.invalid'))
   }
 
   return (
     <div className="report-layout">
       <div className="report">
-        {report.error && <div className="report__error">Ошибка расчёта: {report.error}</div>}
+        {report.error && <div className="report__error">{t('report.error', { message: report.error })}</div>}
         <table className="report__table pl__table">
           <thead>
             <tr>
-              <th className="report__name-col">Показатель</th>
+              <th className="report__name-col">{t('plreport.col.metric')}</th>
               {report.periods.map((p) => (
                 <th key={p} className="report__num-col">
                   <span>{formatPeriod(p)}</span>
-                  <button className="pl__delcol" title="Удалить период" onClick={() => dispatch(removePeriod(p))}>✕</button>
+                  <button className="pl__delcol" title={t('plreport.removePeriod')} onClick={() => dispatch(removePeriod(p))}>✕</button>
                 </th>
               ))}
-              <th className="report__num-col report__total-col">ИТОГО</th>
-              <th className="report__num-col pl__pct-col">% выр.</th>
-              <th className="pl__addcol"><button className="btn btn--small" onClick={addMonth}>+ период</button></th>
+              <th className="report__num-col report__total-col">{t('report.col.total')}</th>
+              <th className="report__num-col pl__pct-col">{t('plreport.col.pct')}</th>
+              <th className="pl__addcol"><button className="btn btn--small" onClick={addMonth}>{t('plreport.addPeriod')}</button></th>
             </tr>
           </thead>
           <tbody>
@@ -137,17 +140,16 @@ function PlEmpty() {
   return (
     <div className="report-layout">
       <div className="report empty-state">
-        <div className="empty-state__title">P&L пуст</div>
+        <div className="empty-state__title">{t('plreport.empty.title')}</div>
         <p className="empty-state__text">
-          Начните со стандартной структуры P&L или загрузите учебный пример.
-          Значения по месяцам вводятся вручную, уровни прибыли считаются автоматически.
+          {t('plreport.empty.body')}
         </p>
         <div className="empty-state__actions">
           <button
             className="btn btn--primary"
-            onClick={() => dispatch(seedItems({ items: structuredClone(PL_ITEMS), periods: [] }))}
+            onClick={() => dispatch(seedItems({ items: buildPlItems(), periods: [] }))}
           >
-            Стандартная структура P&L
+            {t('plreport.seed')}
           </button>
           <button
             className="btn"
@@ -159,7 +161,7 @@ function PlEmpty() {
               }
             }}
           >
-            Загрузить учебный пример
+            {t('plreport.loadExample')}
           </button>
         </div>
       </div>

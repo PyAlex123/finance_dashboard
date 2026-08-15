@@ -2,6 +2,7 @@
 // их тегированным объектом {"$bigint": "..."} и восстанавливаем при импорте.
 
 import type { DataSnapshot } from '../domain/types'
+import { t } from '../i18n'
 
 const SCHEMA_VERSION = 1
 
@@ -39,7 +40,7 @@ export function importJson(text: string): DataSnapshot {
   const parsed = JSON.parse(text, bigintReviver) as Partial<Envelope> & Partial<DataSnapshot>
   const data = (parsed as Envelope).data ?? (parsed as DataSnapshot)
   if (!data || !Array.isArray(data.operations) || !Array.isArray(data.accounts)) {
-    throw new Error('Не похоже на файл финансовых отчётов')
+    throw new Error(t('net.error.notOurFile'))
   }
   return normalizeSnapshot(data)
 }
